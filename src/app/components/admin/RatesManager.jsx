@@ -1,416 +1,165 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PlusIcon } from '@heroicons/react/24/outline';
-import Select from 'react-select';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { 
+    PlusIcon, 
+    PencilIcon, 
+    TrashIcon,
+    ChevronUpIcon,
+    ChevronDownIcon,
+    MagnifyingGlassIcon,
+    ArrowsUpDownIcon,
+    FunnelIcon,
+    CalendarIcon,
+    CurrencyDollarIcon,
+    TruckIcon,
+    BuildingLibraryIcon
+} from "@heroicons/react/24/outline";
+import { useSession } from 'next-auth/react';
+import RateStepModal from '@/app/components/admin/RateStepModal';
+import EditRateModal from '@/app/components/admin/EditRateModal';
+import toast from 'react-hot-toast';
 
 export default function RatesManager() {
+    const { data: session } = useSession();
     const [rates, setRates] = useState([]);
-    const [isAddingRate, setIsAddingRate] = useState(false);
-    const [shippingLines, setShippingLines] = useState([]);
-    const [ports, setPorts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [newRate, setNewRate] = useState({
-        shippingLineId: '',
-        polIds: [],
-        podIds: [],
-        validityFrom: '',
-        validityTo: '',
-        remarks: '',
-        rate20: '',
-        rate40: '',
-        rate40HC: '',
-        rate40RF: ''
+    const [loading, setLoading] = useState(true);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [editingRate, setEditingRate] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [expandedRows, setExpandedRows] = useState(() => new Set());
+    const [sortConfig, setSortConfig] = useState({
+        field: 'created_at',
+        direction: 'desc'
     });
 
-    // Memoize port options
-    const portOptions = useMemo(() => 
-        ports.map(port => ({
-            value: port._id,
-            label: `${port.name} (${port.region})`
-        })), [ports]
-    );
-
-    const fetchData = useCallback(async () => {
+    const fetchRates = useCallback(async () => {
         try {
-            setIsLoading(true);
-            const [ratesRes, linesRes, portsRes, containersRes] = await Promise.all([
-                fetch('http://localhost:5001/api/rates'),
-                fetch('http://localhost:5001/api/shipping-lines'),
-                fetch('http://localhost:5001/api/ports'),
-                fetch('http://localhost:5001/api/containers')
-            ]);
-
-            const [ratesData, linesData, portsData, containersData] = await Promise.all([
-                ratesRes.json(),
-                linesRes.json(),
-                portsRes.json(),
-                containersRes.json()
-            ]);
-
-            setRates(ratesData);
-            setShippingLines(linesData);
-            setPorts(portsData);
+            const response = await fetch('http://localhost:5001/api/rates', {
+                headers: {
+                    'Authorization': `Bearer ${session?.accessToken}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch rates');
+            }
+            const data = await response.json();
+            setRates(data);
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('Error fetching rates:', error);
+            toast.error('Failed to fetch rates');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
-    }, []);
+    }, [session?.accessToken]);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        if (session?.accessToken) {
+            fetchRates();
+        }
+    }, [session?.accessToken, fetchRates]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleAddRate = async (rateData) => {
         try {
-            // Create container rates array from individual fields
-            const containerRates = [];
-            
-            if (newRate.rate20) {
-                containerRates.push({
-                    containerId: "1", // ID for 20' container
-                    rate: parseFloat(newRate.rate20)
-                });
-            }
-            if (newRate.rate40) {
-                containerRates.push({
-                    containerId: "2", // ID for 40' container
-                    rate: parseFloat(newRate.rate40)
-                });
-            }
-            if (newRate.rate40HC) {
-                containerRates.push({
-                    containerId: "3", // ID for 40' HC container
-                    rate: parseFloat(newRate.rate40HC)
-                });
-            }
-            if (newRate.rate40RF) {
-                containerRates.push({
-                    containerId: "4", // ID for 40' RF container
-                    rate: parseFloat(newRate.rate40RF)
-                });
-            }
-
-            if (containerRates.length === 0) {
-                alert('Please enter at least one container rate');
-                return;
-            }
-
-            const ratesArray = [];
-            newRate.polIds.forEach(polId => {
-                newRate.podIds.forEach(podId => {
-                    ratesArray.push({
-                        shippingLineId: newRate.shippingLineId,
-                        polId,
-                        podId,
-                        containerRates,
-                        validityFrom: newRate.validityFrom,
-                        validityTo: newRate.validityTo,
-                        remarks: newRate.remarks
-                    });
-                });
-            });
-
-            const response = await fetch('http://localhost:5001/api/rates/bulk', {
+            const response = await fetch('http://localhost:5001/api/rates', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rates: ratesArray }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.accessToken}`
+                },
+                body: JSON.stringify(rateData)
             });
 
-            if (response.ok) {
-                await fetchData();
-                setIsAddingRate(false);
-                // Reset state
-                setNewRate({
-                    shippingLineId: '',
-                    polIds: [],
-                    podIds: [],
-                    validityFrom: '',
-                    validityTo: '',
-                    remarks: '',
-                    rate20: '',
-                    rate40: '',
-                    rate40HC: '',
-                    rate40RF: ''
-                });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create rate');
             }
+
+            await fetchRates();
+            setShowAddModal(false);
+            toast.success('Rate added successfully');
         } catch (error) {
-            console.error('Error adding rates:', error);
+            console.error('Error creating rate:', error);
+            toast.error(error.message || 'Failed to create rate');
+            throw error;
         }
     };
 
-    const renderContainerRates = () => (
-        <div className="mt-4">
-            <h3 className="font-medium mb-2">Container Rates</h3>
-            <div className="grid grid-cols-1 gap-4">
-                {/* 20' Container */}
-                <div className="flex items-center space-x-4">
-                    <label className="w-48 text-sm font-medium text-gray-700">
-                        20' Standard container
-                    </label>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            placeholder="Enter rate"
-                            value={newRate.rate20}
-                            onChange={(e) => setNewRate(prev => ({ ...prev, rate20: e.target.value }))}
-                            className="border rounded-lg px-4 py-2 w-32 focus:ring-2 focus:ring-[#C6082C] focus:border-transparent"
-                            min="0"
-                            step="0.01"
-                        />
-                        <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
-                            USD
-                        </span>
-                    </div>
-                </div>
+    const handleDeleteRate = async (rateId) => {
+        if (!window.confirm('Are you sure you want to delete this rate?')) {
+            return;
+        }
 
-                {/* 40' Container */}
-                <div className="flex items-center space-x-4">
-                    <label className="w-48 text-sm font-medium text-gray-700">
-                        40' Standard container
-                    </label>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            placeholder="Enter rate"
-                            value={newRate.rate40}
-                            onChange={(e) => setNewRate(prev => ({ ...prev, rate40: e.target.value }))}
-                            className="border rounded-lg px-4 py-2 w-32 focus:ring-2 focus:ring-[#C6082C] focus:border-transparent"
-                            min="0"
-                            step="0.01"
-                        />
-                        <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
-                            USD
-                        </span>
-                    </div>
-                </div>
+        try {
+            const response = await fetch(`http://localhost:5001/api/rates/${rateId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session?.accessToken}`
+                }
+            });
 
-                {/* 40' HC Container */}
-                <div className="flex items-center space-x-4">
-                    <label className="w-48 text-sm font-medium text-gray-700">
-                        45' Highcube container
-                    </label>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            placeholder="Enter rate"
-                            value={newRate.rate40HC}
-                            onChange={(e) => setNewRate(prev => ({ ...prev, rate40HC: e.target.value }))}
-                            className="border rounded-lg px-4 py-2 w-32 focus:ring-2 focus:ring-[#C6082C] focus:border-transparent"
-                            min="0"
-                            step="0.01"
-                        />
-                        <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
-                            USD
-                        </span>
-                    </div>
-                </div>
+            if (!response.ok) {
+                throw new Error('Failed to delete rate');
+            }
 
-                {/* 40' Reefer Container */}
-                <div className="flex items-center space-x-4">
-                    <label className="w-48 text-sm font-medium text-gray-700">
-                        40' Reefer container
-                    </label>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            placeholder="Enter rate"
-                            value={newRate.rate40RF}
-                            onChange={(e) => setNewRate(prev => ({ ...prev, rate40RF: e.target.value }))}
-                            className="border rounded-lg px-4 py-2 w-32 focus:ring-2 focus:ring-[#C6082C] focus:border-transparent"
-                            min="0"
-                            step="0.01"
-                        />
-                        <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
-                            USD
-                        </span>
-                    </div>
-                </div>
+            await fetchRates();
+            toast.success('Rate deleted successfully');
+        } catch (error) {
+            console.error('Error deleting rate:', error);
+            toast.error('Failed to delete rate');
+        }
+    };
+
+    const toggleRowExpansion = (rateId) => {
+        const newExpandedRows = new Set(expandedRows);
+        if (newExpandedRows.has(rateId)) {
+            newExpandedRows.delete(rateId);
+        } else {
+            newExpandedRows.add(rateId);
+        }
+        setExpandedRows(newExpandedRows);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#C6082C]"></div>
             </div>
-        </div>
-    );
-
-    const renderForm = () => (
-        <motion.form
-            key="rate-form"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="mb-6 p-4 border rounded-lg"
-            onSubmit={handleSubmit}
-        >
-            <div className="grid grid-cols-1 gap-4">
-                {/* Shipping Line Select */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Shipping Line
-                    </label>
-                    <select
-                        value={newRate.shippingLineId}
-                        onChange={(e) => setNewRate(prev => ({ ...prev, shippingLineId: e.target.value }))}
-                        className="w-full border rounded-lg px-4 py-2"
-                        required
-                    >
-                        <option value="">Select Shipping Line</option>
-                        {shippingLines.map((line) => (
-                            <option key={line._id} value={line._id}>
-                                {line.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* POL Multi-select */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ports of Loading (POL)
-                    </label>
-                    <Select
-                        isMulti
-                        options={portOptions}
-                        value={portOptions.filter(option => newRate.polIds.includes(option.value))}
-                        onChange={(selected) => setNewRate(prev => ({
-                            ...prev,
-                            polIds: selected ? selected.map(item => item.value) : []
-                        }))}
-                        className="basic-multi-select"
-                        classNamePrefix="select"
-                    />
-                </div>
-
-                {/* POD Multi-select */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ports of Discharge (POD)
-                    </label>
-                    <Select
-                        isMulti
-                        options={portOptions}
-                        value={portOptions.filter(option => newRate.podIds.includes(option.value))}
-                        onChange={(selected) => setNewRate(prev => ({
-                            ...prev,
-                            podIds: selected ? selected.map(item => item.value) : []
-                        }))}
-                        className="basic-multi-select"
-                        classNamePrefix="select"
-                    />
-                </div>
-
-                {/* Date inputs */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Validity From
-                        </label>
-                        <input
-                            type="date"
-                            value={newRate.validityFrom}
-                            onChange={(e) => setNewRate(prev => ({ ...prev, validityFrom: e.target.value }))}
-                            className="w-full border rounded-lg px-4 py-2"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Validity To
-                        </label>
-                        <input
-                            type="date"
-                            value={newRate.validityTo}
-                            onChange={(e) => setNewRate(prev => ({ ...prev, validityTo: e.target.value }))}
-                            className="w-full border rounded-lg px-4 py-2"
-                            required
-                        />
-                    </div>
-                </div>
-
-                {renderContainerRates()}
-
-                {/* Remarks */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Remarks
-                    </label>
-                    <input
-                        type="text"
-                        placeholder="Remarks"
-                        value={newRate.remarks}
-                        onChange={(e) => setNewRate(prev => ({ ...prev, remarks: e.target.value }))}
-                        className="w-full border rounded-lg px-4 py-2"
-                    />
-                </div>
-
-                {/* Form Buttons */}
-                <div className="flex space-x-2">
-                    <button
-                        type="submit"
-                        className="bg-green-500 text-white px-4 py-2 rounded-lg"
-                    >
-                        Save
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsAddingRate(false)}
-                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
-                    >
-                        Cancel
-                    </button>
-                </div>
-            </div>
-        </motion.form>
-    );
-
-    if (isLoading) {
-        return <div>Loading...</div>;
+        );
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">Manage Rates</h2>
-                <button
-                    onClick={() => setIsAddingRate(true)}
-                    className="bg-[#C6082C] text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+        <div className="space-y-6">
+            {/* Header Section */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Rates Management</h1>
+                    <p className="text-gray-500">Manage shipping rates and routes</p>
+                </div>
+                <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center space-x-2 bg-[#C6082C] text-white px-4 py-2 rounded-lg hover:bg-[#a00624] transition-colors"
                 >
                     <PlusIcon className="w-5 h-5" />
                     <span>Add Rate</span>
-                </button>
+                </motion.button>
             </div>
 
-            <AnimatePresence>
-                {isAddingRate && renderForm()}
-            </AnimatePresence>
+            {/* Modals */}
+            <RateStepModal
+                isOpen={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                onSubmit={handleAddRate}
+            />
 
-            <div className="grid gap-4">
-                {rates.map((rate) => (
-                    <motion.div
-                        key={rate._id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="border rounded-lg p-4"
-                    >
-                        <div className="flex justify-between mb-2">
-                            <h3 className="font-medium">{rate.shippingLine}</h3>
-                            <span className="text-sm text-gray-500">
-                                Valid: {new Date(rate.validityFrom).toLocaleDateString()} - 
-                                {new Date(rate.validityTo).toLocaleDateString()}
-                            </span>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                            {rate.pol} → {rate.pod}
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {rate.containerRates.map((container, idx) => (
-                                <div key={`${rate._id}-${idx}`} className="text-sm">
-                                    {container.type}': USD {container.rate}
-                                </div>
-                            ))}
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
+            <EditRateModal
+                isOpen={editingRate !== null}
+                onClose={() => setEditingRate(null)}
+                onSubmit={(data) => handleUpdateRate(editingRate?._id, data)}
+                rate={editingRate}
+            />
         </div>
     );
 } 
