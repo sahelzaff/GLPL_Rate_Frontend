@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -21,38 +21,25 @@ export default function PortsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingPort, setEditingPort] = useState(null);
-    const [newPort, setNewPort] = useState({
-        port_code: '',
-        port_name: '',
-        country: '',
-        region: ''
-    });
 
-    useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/auth/login');
-        }
-        if (session?.user?.role !== 'admin') {
-            router.push('/');
-            toast.error('Admin access required');
-        }
-    }, [session, status, router]);
-
-    const fetchPorts = async () => {
+    const fetchPorts = useCallback(async () => {
         try {
             const response = await fetch('http://localhost:5001/api/ports');
             const data = await response.json();
             setPorts(data);
         } catch (error) {
-            toast.error('Failed to fetch ports');
-        } finally {
-            setLoading(false);
+            console.error('Error fetching ports:', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
+        if (session?.user?.role !== 'admin') {
+            router.push('/');
+            toast.error('Admin access required');
+            return;
+        }
         fetchPorts();
-    }, []);
+    }, [session?.user?.role, router, fetchPorts]);
 
     const handleAddPort = async (portData) => {
         try {

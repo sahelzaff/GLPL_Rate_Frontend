@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { 
@@ -27,18 +27,13 @@ export default function RatesPage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingRate, setEditingRate] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [expandedRows, setExpandedRows] = useState(new Set());
+    const [expandedRows, setExpandedRows] = useState(() => new Set());
     const [sortConfig, setSortConfig] = useState({
         field: 'created_at',
         direction: 'desc'
     });
 
-    // Fetch rates on component mount
-    useEffect(() => {
-        fetchRates();
-    }, []);
-
-    const fetchRates = async () => {
+    const fetchRates = useCallback(async () => {
         try {
             const response = await fetch('http://localhost:5001/api/rates', {
                 headers: {
@@ -56,7 +51,11 @@ export default function RatesPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [session?.accessToken]);
+
+    useEffect(() => {
+        fetchRates();
+    }, [fetchRates]);
 
     const handleAddRate = async (rateData) => {
         try {
@@ -147,10 +146,32 @@ export default function RatesPage() {
     };
 
     const handleSort = (field) => {
-        setSortConfig(prevConfig => ({
-            field,
-            direction: prevConfig.field === field && prevConfig.direction === 'asc' ? 'desc' : 'asc'
-        }));
+        setSortConfig(prevConfig => {
+            const newDirection = prevConfig.field === field && prevConfig.direction === 'asc' ? 'desc' : 'asc';
+            return { field, direction: newDirection };
+        });
+
+        const sortedRates = [...rates].sort((a, b) => {
+            switch (field) {
+                case 'price_asc': {
+                    const aPrice = Math.min(...a.containerRates.map(r => r.rate));
+                    const bPrice = Math.min(...b.containerRates.map(r => r.rate));
+                    return aPrice - bPrice;
+                }
+                case 'price_desc': {
+                    const aPrice = Math.max(...a.containerRates.map(r => r.rate));
+                    const bPrice = Math.max(...b.containerRates.map(r => r.rate));
+                    return bPrice - aPrice;
+                }
+                case 'transit_time': {
+                    return (a.transitTime || 0) - (b.transitTime || 0);
+                }
+                default:
+                    return 0;
+            }
+        });
+
+        setRates(sortedRates);
     };
 
     const sortOptions = [

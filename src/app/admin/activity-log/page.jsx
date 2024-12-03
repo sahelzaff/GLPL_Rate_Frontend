@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -15,7 +15,7 @@ export default function ActivityLogPage() {
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState(new Date());
 
-    const fetchActivities = async () => {
+    const fetchActivities = useCallback(async () => {
         if (!session?.accessToken) return;
         
         try {
@@ -27,7 +27,6 @@ export default function ActivityLogPage() {
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('Fetched activities:', data);
                 setActivities(data);
                 setLastUpdate(new Date());
             } else {
@@ -39,7 +38,7 @@ export default function ActivityLogPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [session?.accessToken]);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -52,12 +51,13 @@ export default function ActivityLogPage() {
             return;
         }
 
-        fetchActivities();
+        const fetchAndSetActivities = async () => {
+            await fetchActivities();
+        };
+
+        fetchAndSetActivities();
         
-        // Set up polling for activities - every 10 seconds
         const pollInterval = setInterval(fetchActivities, 10000);
-        
-        // Set up interval for updating relative timestamps
         const updateInterval = setInterval(() => {
             setLastUpdate(new Date());
         }, 1000);
@@ -66,7 +66,7 @@ export default function ActivityLogPage() {
             clearInterval(pollInterval);
             clearInterval(updateInterval);
         };
-    }, [session, status, router]);
+    }, [session, status, router, fetchActivities]);
 
     const formatTimestamp = (timestamp) => {
         const date = new Date(timestamp);

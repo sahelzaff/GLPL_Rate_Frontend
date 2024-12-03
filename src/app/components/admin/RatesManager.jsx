@@ -2,18 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
-    PlusIcon, 
-    PencilIcon, 
-    TrashIcon,
-    ChevronUpIcon,
-    ChevronDownIcon,
-    MagnifyingGlassIcon,
-    ArrowsUpDownIcon,
-    FunnelIcon,
-    CalendarIcon,
-    CurrencyDollarIcon,
-    TruckIcon,
-    BuildingLibraryIcon
+    PlusIcon 
 } from "@heroicons/react/24/outline";
 import { useSession } from 'next-auth/react';
 import RateStepModal from '@/app/components/admin/RateStepModal';
@@ -26,18 +15,15 @@ export default function RatesManager() {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingRate, setEditingRate] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
     const [expandedRows, setExpandedRows] = useState(() => new Set());
-    const [sortConfig, setSortConfig] = useState({
-        field: 'created_at',
-        direction: 'desc'
-    });
 
     const fetchRates = useCallback(async () => {
+        if (!session?.accessToken) return;
+        
         try {
             const response = await fetch('http://localhost:5001/api/rates', {
                 headers: {
-                    'Authorization': `Bearer ${session?.accessToken}`
+                    'Authorization': `Bearer ${session.accessToken}`
                 }
             });
             if (!response.ok) {
@@ -54,10 +40,32 @@ export default function RatesManager() {
     }, [session?.accessToken]);
 
     useEffect(() => {
-        if (session?.accessToken) {
-            fetchRates();
+        fetchRates();
+    }, [fetchRates]);
+
+    const handleUpdateRate = async (rateId, data) => {
+        try {
+            const response = await fetch(`http://localhost:5001/api/rates/${rateId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.accessToken}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update rate');
+            }
+
+            await fetchRates();
+            setEditingRate(null);
+            toast.success('Rate updated successfully');
+        } catch (error) {
+            console.error('Error updating rate:', error);
+            toast.error('Failed to update rate');
         }
-    }, [session?.accessToken, fetchRates]);
+    };
 
     const handleAddRate = async (rateData) => {
         try {
@@ -85,41 +93,6 @@ export default function RatesManager() {
         }
     };
 
-    const handleDeleteRate = async (rateId) => {
-        if (!window.confirm('Are you sure you want to delete this rate?')) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`http://localhost:5001/api/rates/${rateId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${session?.accessToken}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete rate');
-            }
-
-            await fetchRates();
-            toast.success('Rate deleted successfully');
-        } catch (error) {
-            console.error('Error deleting rate:', error);
-            toast.error('Failed to delete rate');
-        }
-    };
-
-    const toggleRowExpansion = (rateId) => {
-        const newExpandedRows = new Set(expandedRows);
-        if (newExpandedRows.has(rateId)) {
-            newExpandedRows.delete(rateId);
-        } else {
-            newExpandedRows.add(rateId);
-        }
-        setExpandedRows(newExpandedRows);
-    };
-
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[400px]">
@@ -130,7 +103,6 @@ export default function RatesManager() {
 
     return (
         <div className="space-y-6">
-            {/* Header Section */}
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Rates Management</h1>
@@ -147,7 +119,6 @@ export default function RatesManager() {
                 </motion.button>
             </div>
 
-            {/* Modals */}
             <RateStepModal
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
@@ -157,7 +128,7 @@ export default function RatesManager() {
             <EditRateModal
                 isOpen={editingRate !== null}
                 onClose={() => setEditingRate(null)}
-                onSubmit={(data) => handleUpdateRate(editingRate?._id, data)}
+                onSubmit={handleUpdateRate}
                 rate={editingRate}
             />
         </div>

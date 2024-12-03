@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -32,7 +32,7 @@ export default function ShippingLinesPage() {
         }
     }, [session, status, router]);
 
-    const fetchShippingLines = async () => {
+    const fetchShippingLines = useCallback(async () => {
         try {
             const response = await fetch('http://localhost:5001/api/shipping-lines', {
                 headers: {
@@ -52,13 +52,13 @@ export default function ShippingLinesPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [session?.accessToken]);
 
     useEffect(() => {
         if (session?.accessToken) {
             fetchShippingLines();
         }
-    }, [session]);
+    }, [session?.accessToken, fetchShippingLines]);
 
     const handleAddShippingLine = async (lineData) => {
         try {

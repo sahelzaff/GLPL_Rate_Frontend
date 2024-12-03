@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -18,7 +18,6 @@ import {
     PlusIcon,
     ClockIcon
 } from '@heroicons/react/24/outline';
-import { getDashboardStats } from '@/services/api';
 import Link from 'next/link';
 
 const StatCard = ({ title, value, icon: Icon, trend, color }) => (
@@ -87,7 +86,7 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState(new Date());
 
-    const fetchActivities = async () => {
+    const fetchActivities = useCallback(async () => {
         if (!session?.accessToken) return;
         
         try {
@@ -104,8 +103,9 @@ export default function AdminPage() {
             }
         } catch (error) {
             console.error('Error fetching activities:', error);
+            toast.error('Failed to load activity log');
         }
-    };
+    }, [session?.accessToken]);
 
     useEffect(() => {
         if (status === 'unauthenticated') {

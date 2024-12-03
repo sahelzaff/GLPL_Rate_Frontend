@@ -5,7 +5,19 @@
   ],
   "rules": {
     "react-hooks/exhaustive-deps": "warn",
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-    "@next/next/no-img-element": "off"
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "@next/next/no-img-element": "off",
+    "no-undef": "error",
+    "react/no-unescaped-entities": "off",
+    "import/no-anonymous-default-export": "off"
+  },
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true
+  },
+  "globals": {
+    "Set": "readonly",
+    "Promise": "readonly"
   }
 }
