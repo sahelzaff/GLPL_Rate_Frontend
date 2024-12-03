@@ -85,7 +85,7 @@ export default function ShippingLinesPage() {
         }
     };
 
-    const handleUpdateShippingLine = async (lineId, updatedData) => {
+    const handleUpdateShippingLine = useCallback(async (lineId, updatedData) => {
         try {
             const response = await fetch(`http://localhost:5001/api/shipping-lines/${lineId}`, {
                 method: 'PUT',
@@ -93,21 +93,17 @@ export default function ShippingLinesPage() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.accessToken}`
                 },
-                body: JSON.stringify(updatedData),
+                body: JSON.stringify(updatedData)
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update shipping line');
-            }
-
+            if (!response.ok) throw new Error('Failed to update shipping line');
             await fetchShippingLines();
             setEditingLine(null);
             toast.success('Shipping line updated successfully');
         } catch (error) {
             toast.error(error.message);
         }
-    };
+    }, [session?.accessToken, fetchShippingLines]);
 
     const handleDeleteShippingLine = async (lineId) => {
         if (!window.confirm('Are you sure you want to delete this shipping line?')) return;

@@ -49,7 +49,7 @@ export default function SettingsPage() {
     });
 
     // Security Settings
-    const [securitySettings, setSecuritySettings] = useState({
+    const [_securitySettings, _setSecuritySettings] = useState({
         requireMFA: false,
         passwordExpiry: 90,
         minPasswordLength: 8,
@@ -58,7 +58,7 @@ export default function SettingsPage() {
     });
 
     // Theme Settings
-    const [themeSettings, setThemeSettings] = useState({
+    const [_themeSettings, _setThemeSettings] = useState({
         primaryColor: '#C6082C',
         darkMode: false,
         sidebarCollapsed: false,
@@ -66,7 +66,7 @@ export default function SettingsPage() {
     });
 
     // API Settings
-    const [apiSettings, setApiSettings] = useState({
+    const [_apiSettings, _setApiSettings] = useState({
         apiKey: '',
         rateLimit: 100,
         timeout: 30,
@@ -75,7 +75,7 @@ export default function SettingsPage() {
     });
 
     // Backup Settings
-    const [backupSettings, setBackupSettings] = useState({
+    const [_backupSettings, _setBackupSettings] = useState({
         autoBackup: true,
         backupFrequency: 'daily',
         retentionPeriod: 30,

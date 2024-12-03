@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-export default function Autocomplete({ value, onChange, placeholder, initialValue }) {
+export default function Autocomplete({ _value, onChange, placeholder, initialValue }) {
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);

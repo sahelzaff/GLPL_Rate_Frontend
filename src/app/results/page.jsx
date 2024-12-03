@@ -543,11 +543,8 @@ export default function Results() {
     const [searchError, setSearchError] = useState('');
     const [filteredResults, setFilteredResults] = useState([]);
     const [highlights, setHighlights] = useState(null);
-    const rateRefs = {
-        recommended: React.useRef(null),
-        cheapest: React.useRef(null),
-        fastest: React.useRef(null)
-    };
+    const [_rateRefs, _setRateRefs] = useState({});
+    const [_session, _setSession] = useState(null);
 
     // Get current pol and pod from searchParams
     const currentPol = searchParams.get('pol');

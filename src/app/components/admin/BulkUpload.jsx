@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { CloudArrowUpIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { addBulkRates } from '@/services/api';
 
 export default function BulkUpload() {

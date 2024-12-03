@@ -33,12 +33,13 @@ export default function PortsPage() {
     }, []);
 
     useEffect(() => {
+        setLoading(true);
         if (session?.user?.role !== 'admin') {
             router.push('/');
             toast.error('Admin access required');
             return;
         }
-        fetchPorts();
+        fetchPorts().finally(() => setLoading(false));
     }, [session?.user?.role, router, fetchPorts]);
 
     const handleAddPort = async (portData) => {
@@ -66,30 +67,23 @@ export default function PortsPage() {
         }
     };
 
-    const handleUpdatePort = async (e) => {
-        e.preventDefault();
+    const handleUpdatePort = useCallback(async (portId, data) => {
         try {
-            const response = await fetch(`http://localhost:5001/api/ports/${editingPort._id}`, {
+            const response = await fetch(`http://localhost:5001/api/ports/${portId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.accessToken}`
                 },
-                body: JSON.stringify(editingPort),
+                body: JSON.stringify(data)
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update port');
-            }
-
+            if (!response.ok) throw new Error('Failed to update port');
             await fetchPorts();
-            setEditingPort(null);
             toast.success('Port updated successfully');
         } catch (error) {
             toast.error(error.message);
         }
-    };
+    }, [session?.accessToken, fetchPorts]);
 
     const handleDeletePort = async (portId) => {
         if (!window.confirm('Are you sure you want to delete this port?')) return;

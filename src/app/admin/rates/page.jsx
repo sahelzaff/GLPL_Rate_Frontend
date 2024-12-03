@@ -151,47 +151,19 @@ export default function RatesPage() {
             return { field, direction: newDirection };
         });
 
+        let aValue, bValue;
         const sortedRates = [...rates].sort((a, b) => {
-            let aValue, bValue;
-            
             switch (field) {
                 case 'price_asc':
                     aValue = Math.min(...a.containerRates.map(r => r.rate));
                     bValue = Math.min(...b.containerRates.map(r => r.rate));
                     return aValue - bValue;
-                
                 case 'price_desc':
                     aValue = Math.max(...a.containerRates.map(r => r.rate));
                     bValue = Math.max(...b.containerRates.map(r => r.rate));
                     return bValue - aValue;
-                
                 case 'transit_time':
-                    aValue = a.transitTime || 0;
-                    bValue = b.transitTime || 0;
-                    return aValue - bValue;
-                
-                case 'created_at':
-                    aValue = new Date(a.created_at).getTime();
-                    bValue = new Date(b.created_at).getTime();
-                    return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
-                
-                case 'valid_from':
-                    aValue = new Date(a.valid_from).getTime();
-                    bValue = new Date(b.valid_from).getTime();
-                    return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
-                
-                case 'valid_to':
-                    aValue = new Date(a.valid_to).getTime();
-                    bValue = new Date(b.valid_to).getTime();
-                    return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
-                
-                case 'shipping_line':
-                    aValue = a.shipping_line?.toLowerCase() || '';
-                    bValue = b.shipping_line?.toLowerCase() || '';
-                    return sortConfig.direction === 'asc' 
-                        ? aValue.localeCompare(bValue)
-                        : bValue.localeCompare(aValue);
-                
+                    return (a.transitTime || 0) - (b.transitTime || 0);
                 default:
                     return 0;
             }

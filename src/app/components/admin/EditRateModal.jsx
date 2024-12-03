@@ -52,17 +52,8 @@ export default function EditRateModal({ isOpen, onClose, onSubmit, rate }) {
             });
             fetchShippingLines();
             fetchPorts();
-            const selectedShippingLine = shippingLines.find(sl => sl._id === rate.shipping_line_id);
-            const selectedPol = ports.find(p => p._id === rate.pol_id);
-            const selectedPod = ports.find(p => p._id === rate.pod_id);
-
-            setInputValues({
-                shipping_line_name: selectedShippingLine?.name || '',
-                pol_name: selectedPol?.port_name || '',
-                pod_name: selectedPod?.port_name || ''
-            });
         }
-    }, [isOpen, rate]);
+    }, [isOpen, rate, ports, shippingLines, fetchShippingLines, fetchPorts]);
 
     const fetchShippingLines = async () => {
         try {

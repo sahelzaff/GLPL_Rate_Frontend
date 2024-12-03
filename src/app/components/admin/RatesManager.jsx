@@ -8,6 +8,8 @@ import { useSession } from 'next-auth/react';
 import RateStepModal from '@/app/components/admin/RateStepModal';
 import EditRateModal from '@/app/components/admin/EditRateModal';
 import toast from 'react-hot-toast';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
+import RateCard from '@/app/components/RateCard';
 
 export default function RatesManager() {
     const { data: session } = useSession();
@@ -94,11 +96,7 @@ export default function RatesManager() {
     };
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#C6082C]"></div>
-            </div>
-        );
+        return <LoadingSpinner />;
     }
 
     return (
@@ -131,6 +129,10 @@ export default function RatesManager() {
                 onSubmit={handleUpdateRate}
                 rate={editingRate}
             />
+
+            {rates.map(rate => (
+                <RateCard key={rate.id} rate={rate} />
+            ))}
         </div>
     );
 } 
