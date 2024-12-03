@@ -163,7 +163,7 @@ export default function AdminPage() {
             clearInterval(pollInterval);
             clearInterval(updateInterval);
         };
-    }, [session, status, router]);
+    }, [session, status, router, fetchActivities]);
 
     if (status === 'loading' || loading) {
         return (

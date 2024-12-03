@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { UserCircleIcon, ArrowRightOnRectangleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import assets from '../../../public/assets/asset';
 
@@ -15,7 +16,13 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-full">
                     <div className="flex items-center">
                         <Link href="/" className="flex items-center space-x-2">
-                            <img src={assets.GLPL_Logo_White} alt="GLPL Logo" className="h-12 w-12" />
+                            <Image
+                                src={assets.GLPL_Logo_White}
+                                alt="GLPL Logo"
+                                width={48}
+                                height={48}
+                                priority
+                            />
                             <span className="text-white font-bold text-xl">GLPL Rate Card</span>
                         </Link>
                     </div>
