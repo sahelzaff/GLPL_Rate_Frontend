@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon, ArrowRightIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -55,7 +55,7 @@ export default function EditRateModal({ isOpen, onClose, onSubmit, rate }) {
         }
     }, [isOpen, rate, ports, shippingLines, fetchShippingLines, fetchPorts]);
 
-    const fetchShippingLines = async () => {
+    const fetchShippingLines = useCallback(async () => {
         try {
             const response = await fetch('http://localhost:5001/api/shipping-lines');
             const data = await response.json();
@@ -64,9 +64,9 @@ export default function EditRateModal({ isOpen, onClose, onSubmit, rate }) {
             console.error('Error fetching shipping lines:', error);
             toast.error('Failed to fetch shipping lines');
         }
-    };
+    }, []);
 
-    const fetchPorts = async () => {
+    const fetchPorts = useCallback(async () => {
         try {
             const response = await fetch('http://localhost:5001/api/ports');
             const data = await response.json();
@@ -75,7 +75,7 @@ export default function EditRateModal({ isOpen, onClose, onSubmit, rate }) {
             console.error('Error fetching ports:', error);
             toast.error('Failed to fetch ports');
         }
-    };
+    }, []);
 
     const handleNext = () => {
         if (currentStep < steps.length - 1) {

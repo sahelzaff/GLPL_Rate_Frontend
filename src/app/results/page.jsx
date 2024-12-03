@@ -533,7 +533,7 @@ const saveToRecentSearches = (polCode, podCode, polName, podName) => {
 
 export default function Results() {
     const router = useRouter();
-    const { data: session, status } = useSession();
+    const { data: _session, status } = useSession();
     const searchParams = useSearchParams();
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -544,7 +544,6 @@ export default function Results() {
     const [filteredResults, setFilteredResults] = useState([]);
     const [highlights, setHighlights] = useState(null);
     const [_rateRefs, _setRateRefs] = useState({});
-    const [_session, _setSession] = useState(null);
 
     // Get current pol and pod from searchParams
     const currentPol = searchParams.get('pol');
@@ -628,8 +627,7 @@ export default function Results() {
         router.push(`/results?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`);
     };
 
-    const getContainerIcon = (type) => {
-        const size = type.split("'")[0]; // Gets "20", "40", "45" etc.
+    const _getContainerIcon = (type, size) => {
         const description = type.split("'")[1]?.toLowerCase() || ''; // Gets the description in lowercase
 
         if (description.includes('standard')) {

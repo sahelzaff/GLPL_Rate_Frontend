@@ -39,7 +39,7 @@ const steps = [
 ];
 
 export default function RateStepModal({ isOpen, onClose, onSubmit, initialData }) {
-    const { data: session } = useSession();
+    const { data: _session } = useSession();
     const [currentStep, setCurrentStep] = useState(0);
     const [formData, setFormData] = useState({
         shipping_line: '',
@@ -125,13 +125,6 @@ export default function RateStepModal({ isOpen, onClose, onSubmit, initialData }
         if (currentStep > 0) {
             setCurrentStep(prev => prev - 1);
         }
-    };
-
-    const handlePortSelect = (selected, type) => {
-        setFormData(prev => ({
-            ...prev,
-            [`${type}_ids`]: selected ? selected.map(item => item.value) : []
-        }));
     };
 
     const handleSubmit = async () => {

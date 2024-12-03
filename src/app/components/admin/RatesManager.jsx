@@ -17,7 +17,7 @@ export default function RatesManager() {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingRate, setEditingRate] = useState(null);
-    const [expandedRows, setExpandedRows] = useState(() => new Set());
+    const [_expandedRows, _setExpandedRows] = useState(() => new Set());
 
     const fetchRates = useCallback(async () => {
         if (!session?.accessToken) return;

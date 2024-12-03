@@ -9,11 +9,11 @@ export default function PortsManager() {
     const [ports, setPorts] = useState([]);
     const [isAddingPort, setIsAddingPort] = useState(false);
     const [newPort, setNewPort] = useState({ name: '', region: '' });
-    const [editingPort, setEditingPort] = useState(null);
+    const [_editingPort, setEditingPort] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [regions, setRegions] = useState([]);
 
-    const fetchPorts = async () => {
+    const fetchPorts = useCallback(async () => {
         try {
             setIsLoading(true);
             const data = await getPorts();
@@ -34,7 +34,7 @@ export default function PortsManager() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         const fetchRegions = async () => {
