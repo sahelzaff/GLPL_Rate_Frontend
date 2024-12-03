@@ -7,7 +7,7 @@ export default function ShippingLinesManager() {
     const [shippingLines, setShippingLines] = useState([]);
     const [isAddingLine, setIsAddingLine] = useState(false);
     const [newLine, setNewLine] = useState({ name: '', details: '' });
-    const [editingLine, setEditingLine] = useState(null);
+    const [_editingLine, setEditingLine] = useState(null);
 
     useEffect(() => {
         fetchShippingLines();

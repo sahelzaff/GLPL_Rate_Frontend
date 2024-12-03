@@ -20,7 +20,7 @@ export default function PortsPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
-    const [editingPort, setEditingPort] = useState(null);
+    const [_editingPort, setEditingPort] = useState(null);
 
     const fetchPorts = useCallback(async () => {
         try {
@@ -67,7 +67,7 @@ export default function PortsPage() {
         }
     };
 
-    const handleUpdatePort = useCallback(async (portId, data) => {
+    const _handleUpdatePort = useCallback(async (portId, data) => {
         try {
             const response = await fetch(`http://localhost:5001/api/ports/${portId}`, {
                 method: 'PUT',

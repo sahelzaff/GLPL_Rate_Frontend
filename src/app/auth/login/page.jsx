@@ -1,4 +1,5 @@
 'use client';
+import React, { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -11,8 +12,7 @@ import {
     ArrowRightIcon 
 } from '@heroicons/react/24/outline';
 
-
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
     const { data: _session, status } = useSession();
     const searchParams = useSearchParams();
@@ -25,13 +25,11 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        // If user is already authenticated, redirect them
         if (status === 'authenticated') {
             router.replace(callbackUrl);
         }
     }, [status, router, callbackUrl]);
 
-    // If still loading session, show loading state
     if (status === 'loading') {
         return <div>Loading...</div>;
     }
@@ -51,15 +49,7 @@ export default function LoginPage() {
                 toast.error(result.error);
             } else {
                 toast.success('Login successful!');
-                
-                // Check for stored search params
-                const storedSearch = localStorage.getItem('searchParams');
-                if (storedSearch) {
-                    const { pol, pod } = JSON.parse(storedSearch);
-                    router.push(`/results?pol=${encodeURIComponent(pol)}&pod=${encodeURIComponent(pod)}`);
-                } else {
-                    router.replace(callbackUrl);
-                }
+                router.replace(callbackUrl);
             }
         } catch (error) {
             toast.error('An error occurred. Please try again.');
@@ -181,5 +171,13 @@ export default function LoginPage() {
                 </motion.div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 } 

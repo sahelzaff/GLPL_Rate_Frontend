@@ -23,7 +23,7 @@ import toast from 'react-hot-toast';
 export default function RatesPage() {
     const { data: session } = useSession();
     const [rates, setRates] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [_loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingRate, setEditingRate] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -151,16 +151,21 @@ export default function RatesPage() {
             return { field, direction: newDirection };
         });
 
-        let aValue, bValue;
+        let aValue = 0, bValue = 0;
         const sortedRates = [...rates].sort((a, b) => {
+            if (field === 'price_asc' || field === 'price_desc') {
+                aValue = field === 'price_asc' 
+                    ? Math.min(...a.containerRates.map(r => r.rate))
+                    : Math.max(...a.containerRates.map(r => r.rate));
+                bValue = field === 'price_asc'
+                    ? Math.min(...b.containerRates.map(r => r.rate))
+                    : Math.max(...b.containerRates.map(r => r.rate));
+            }
+
             switch (field) {
                 case 'price_asc':
-                    aValue = Math.min(...a.containerRates.map(r => r.rate));
-                    bValue = Math.min(...b.containerRates.map(r => r.rate));
                     return aValue - bValue;
                 case 'price_desc':
-                    aValue = Math.max(...a.containerRates.map(r => r.rate));
-                    bValue = Math.max(...b.containerRates.map(r => r.rate));
                     return bValue - aValue;
                 case 'transit_time':
                     return (a.transitTime || 0) - (b.transitTime || 0);

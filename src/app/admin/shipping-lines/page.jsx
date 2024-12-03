@@ -20,7 +20,7 @@ export default function ShippingLinesPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
-    const [editingLine, setEditingLine] = useState(null);
+    const [_editingLine, setEditingLine] = useState(null);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -85,7 +85,7 @@ export default function ShippingLinesPage() {
         }
     };
 
-    const handleUpdateShippingLine = useCallback(async (lineId, updatedData) => {
+    const _handleUpdateShippingLine = useCallback(async (lineId, updatedData) => {
         try {
             const response = await fetch(`http://localhost:5001/api/shipping-lines/${lineId}`, {
                 method: 'PUT',
