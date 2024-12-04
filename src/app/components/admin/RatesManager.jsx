@@ -5,23 +5,11 @@ import { PlusIcon } from "@heroicons/react/24/outline";
 import { useSession } from 'next-auth/react';
 import dynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
-import LoadingSpinner from '../LoadingSpinner';
 
-// Dynamically import modals to avoid circular dependencies
-const RateStepModal = dynamic(() => import('./RateStepModal'), {
-    ssr: false,
-    loading: () => <LoadingSpinner />
-});
-
-const EditRateModal = dynamic(() => import('./EditRateModal'), {
-    ssr: false,
-    loading: () => <LoadingSpinner />
-});
-
-const RateCard = dynamic(() => import('../RateCard'), {
-    ssr: false,
-    loading: () => <LoadingSpinner />
-});
+// Dynamically import the modals
+const RateStepModal = dynamic(() => import('./RateStepModal'), { ssr: false });
+const EditRateModal = dynamic(() => import('./EditRateModal'), { ssr: false });
+const RateCard = dynamic(() => import('../RateCard'), { ssr: false });
 
 export default function RatesManager() {
     const { data: session } = useSession();
@@ -29,6 +17,7 @@ export default function RatesManager() {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingRate, setEditingRate] = useState(null);
+    const [_expandedRows, _setExpandedRows] = useState(() => new Set());
 
     const fetchRates = useCallback(async () => {
         if (!session?.accessToken) return;
@@ -39,14 +28,13 @@ export default function RatesManager() {
                     'Authorization': `Bearer ${session.accessToken}`
                 }
             });
-            
             if (!response.ok) {
                 throw new Error('Failed to fetch rates');
             }
-            
             const data = await response.json();
             setRates(data);
         } catch (error) {
+            console.error('Error fetching rates:', error);
             toast.error('Failed to fetch rates');
         } finally {
             setLoading(false);
@@ -56,30 +44,6 @@ export default function RatesManager() {
     useEffect(() => {
         fetchRates();
     }, [fetchRates]);
-
-    const handleAddRate = async (rateData) => {
-        try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.accessToken}`
-                },
-                body: JSON.stringify(rateData)
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to create rate');
-            }
-
-            await fetchRates();
-            setShowAddModal(false);
-            toast.success('Rate added successfully');
-        } catch (error) {
-            toast.error('Failed to create rate');
-            throw error;
-        }
-    };
 
     const handleUpdateRate = async (rateId, data) => {
         try {
@@ -100,7 +64,34 @@ export default function RatesManager() {
             setEditingRate(null);
             toast.success('Rate updated successfully');
         } catch (error) {
+            console.error('Error updating rate:', error);
             toast.error('Failed to update rate');
+        }
+    };
+
+    const handleAddRate = async (rateData) => {
+        try {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.accessToken}`
+                },
+                body: JSON.stringify(rateData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create rate');
+            }
+
+            await fetchRates();
+            setShowAddModal(false);
+            toast.success('Rate added successfully');
+        } catch (error) {
+            console.error('Error creating rate:', error);
+            toast.error(error.message || 'Failed to create rate');
+            throw error;
         }
     };
 
@@ -126,38 +117,22 @@ export default function RatesManager() {
                 </motion.button>
             </div>
 
-            {showAddModal && (
-                <RateStepModal
-                    isOpen={showAddModal}
-                    onClose={() => setShowAddModal(false)}
-                    onSubmit={handleAddRate}
-                />
-            )}
+            <RateStepModal
+                isOpen={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                onSubmit={handleAddRate}
+            />
 
-            {editingRate && (
-                <EditRateModal
-                    isOpen={editingRate !== null}
-                    onClose={() => setEditingRate(null)}
-                    onSubmit={handleUpdateRate}
-                    rate={editingRate}
-                />
-            )}
+            <EditRateModal
+                isOpen={editingRate !== null}
+                onClose={() => setEditingRate(null)}
+                onSubmit={handleUpdateRate}
+                rate={editingRate}
+            />
 
-            {rates.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                    No rates found. Click "Add Rate" to create one.
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {rates.map(rate => (
-                        <RateCard 
-                            key={rate._id} 
-                            rate={rate}
-                            onEdit={() => setEditingRate(rate)}
-                        />
-                    ))}
-                </div>
-            )}
+            {rates.map(rate => (
+                <RateCard key={rate.id} rate={rate} />
+            ))}
         </div>
     );
 } 
