@@ -23,7 +23,7 @@ export default function RatesManager() {
         if (!session?.accessToken) return;
         
         try {
-            const response = await fetch('http://localhost:5001/api/rates', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/rates', {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`
                 }
@@ -47,7 +47,7 @@ export default function RatesManager() {
 
     const handleUpdateRate = async (rateId, data) => {
         try {
-            const response = await fetch(`http://localhost:5001/api/rates/${rateId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/rates/${rateId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export default function RatesManager() {
 
     const handleAddRate = async (rateData) => {
         try {
-            const response = await fetch('http://localhost:5001/api/rates', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/rates', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

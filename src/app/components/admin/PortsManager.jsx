@@ -39,7 +39,7 @@ export default function PortsManager() {
     useEffect(() => {
         const fetchRegions = async () => {
             try {
-                const response = await fetch('http://localhost:5001/api/regions');
+                const response = await fetch('https://glplratebackend-production.up.railway.app//api/regions');
                 const data = await response.json();
                 setRegions(data);
             } catch (error) {
@@ -54,7 +54,7 @@ export default function PortsManager() {
     const handleAddPort = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch('http://localhost:5001/api/ports', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/ports', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ export default function PortsManager() {
 
     const handleDeletePort = async (portId) => {
         try {
-            const response = await fetch(`http://localhost:5001/api/ports/${portId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/ports/${portId}`, {
                 method: 'DELETE',
             });
             if (response.ok) {

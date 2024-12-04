@@ -93,7 +93,7 @@ export default function RateStepModal({ isOpen, onClose, onSubmit, initialData }
 
     const fetchShippingLines = async () => {
         try {
-            const response = await fetch('http://localhost:5001/api/shipping-lines');
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/shipping-lines');
             const data = await response.json();
             setShippingLines(data);
         } catch (error) {
@@ -104,7 +104,7 @@ export default function RateStepModal({ isOpen, onClose, onSubmit, initialData }
 
     const fetchPorts = async () => {
         try {
-            const response = await fetch('http://localhost:5001/api/ports');
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/ports');
             const data = await response.json();
             setPorts(data);
         } catch (error) {
