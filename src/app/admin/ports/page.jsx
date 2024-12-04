@@ -24,7 +24,7 @@ export default function PortsPage() {
 
     const fetchPorts = useCallback(async () => {
         try {
-            const response = await fetch('http://localhost:5001/api/ports');
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/ports');
             const data = await response.json();
             setPorts(data);
         } catch (error) {
@@ -44,7 +44,7 @@ export default function PortsPage() {
 
     const handleAddPort = async (portData) => {
         try {
-            const response = await fetch('http://localhost:5001/api/ports', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/ports', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export default function PortsPage() {
 
     const _handleUpdatePort = useCallback(async (portId, data) => {
         try {
-            const response = await fetch(`http://localhost:5001/api/ports/${portId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/ports/${portId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export default function PortsPage() {
         if (!window.confirm('Are you sure you want to delete this port?')) return;
 
         try {
-            const response = await fetch(`http://localhost:5001/api/ports/${portId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/ports/${portId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`

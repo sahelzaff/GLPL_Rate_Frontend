@@ -34,7 +34,7 @@ export default function ShippingLinesPage() {
 
     const fetchShippingLines = useCallback(async () => {
         try {
-            const response = await fetch('http://localhost:5001/api/shipping-lines', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/shipping-lines', {
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`,
                     'Content-Type': 'application/json'
@@ -62,7 +62,7 @@ export default function ShippingLinesPage() {
 
     const handleAddShippingLine = async (lineData) => {
         try {
-            const response = await fetch('http://localhost:5001/api/shipping-lines', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/shipping-lines', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export default function ShippingLinesPage() {
 
     const _handleUpdateShippingLine = useCallback(async (lineId, updatedData) => {
         try {
-            const response = await fetch(`http://localhost:5001/api/shipping-lines/${lineId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/shipping-lines/${lineId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ export default function ShippingLinesPage() {
         if (!window.confirm('Are you sure you want to delete this shipping line?')) return;
 
         try {
-            const response = await fetch(`http://localhost:5001/api/shipping-lines/${lineId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/shipping-lines/${lineId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`

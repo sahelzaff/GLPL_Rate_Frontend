@@ -90,7 +90,7 @@ export default function AdminPage() {
         if (!session?.accessToken) return;
         
         try {
-            const response = await fetch('http://localhost:5001/api/dashboard/recent-activity', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/dashboard/recent-activity', {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`
                 }
@@ -125,7 +125,7 @@ export default function AdminPage() {
                 setLoading(true);
                 
                 // Fetch stats
-                const statsResponse = await fetch('http://localhost:5001/api/dashboard/stats', {
+                const statsResponse = await fetch('https://glplratebackend-production.up.railway.app//api/dashboard/stats', {
                     headers: {
                         'Authorization': `Bearer ${session.accessToken}`
                     }
