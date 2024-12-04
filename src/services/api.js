@@ -1,6 +1,6 @@
 import { getSession } from 'next-auth/react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = 'https://glplratebackend-production.up.railway.app/';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
