@@ -90,7 +90,7 @@ export default function AdminPage() {
         if (!session?.accessToken) return;
         
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/dashboard/recent-activity', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/dashboard/recent-activity', {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`
                 }
@@ -102,7 +102,6 @@ export default function AdminPage() {
                 setLastUpdate(new Date());
             }
         } catch (error) {
-            console.error('Error fetching activities:', error);
             toast.error('Failed to load activity log');
         }
     }, [session?.accessToken]);
@@ -125,7 +124,7 @@ export default function AdminPage() {
                 setLoading(true);
                 
                 // Fetch stats
-                const statsResponse = await fetch('https://glplratebackend-production.up.railway.app//api/dashboard/stats', {
+                const statsResponse = await fetch('https://glplratebackend-production.up.railway.app/api/dashboard/stats', {
                     headers: {
                         'Authorization': `Bearer ${session.accessToken}`
                     }
@@ -142,7 +141,6 @@ export default function AdminPage() {
                 await fetchActivities();
                 
             } catch (error) {
-                console.error('Error fetching dashboard data:', error);
                 toast.error('Failed to load dashboard data');
             } finally {
                 setLoading(false);

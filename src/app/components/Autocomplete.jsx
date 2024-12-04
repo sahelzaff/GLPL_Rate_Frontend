@@ -10,7 +10,7 @@ export default function Autocomplete({ _value, onChange, placeholder, initialVal
         const fetchInitialPort = async () => {
             if (initialValue) {
                 try {
-                    const response = await fetch(`https://glplratebackend-production.up.railway.app//api/ports/search?term=${initialValue}`);
+                    const response = await fetch(`https://glplratebackend-production.up.railway.app/api/ports/search?term=${initialValue}`);
                     const data = await response.json();
                     if (data && data[0]) {
                         setInputValue(data[0].label);
@@ -26,7 +26,7 @@ export default function Autocomplete({ _value, onChange, placeholder, initialVal
 
     const fetchSuggestions = async (searchTerm) => {
         try {
-            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/ports/search?term=${searchTerm}`);
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/ports/search?term=${searchTerm}`);
             const data = await response.json();
             setSuggestions(data);
             setShowSuggestions(true);
