@@ -558,7 +558,7 @@ function ResultsContent() {
             setLoading(true);
             setError(null);
 
-            const response = await fetch('http://localhost:5001/api/rates/search', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app//api/rates/search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
