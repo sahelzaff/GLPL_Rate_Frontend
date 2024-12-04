@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -20,21 +20,11 @@ import {
 import dynamic from 'next/dynamic';
 import toast from 'react-hot-toast';
 
-// Dynamically import just the modals
-const RateStepModal = dynamic(() => import('@/app/components/admin/RateStepModal'), { 
-    ssr: false,
-    loading: () => <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#C6082C]"></div>
-});
-
-const EditRateModal = dynamic(() => import('@/app/components/admin/EditRateModal'), { 
-    ssr: false,
-    loading: () => <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#C6082C]"></div>
-});
-
-export default function RatesPage() {
+// Wrap the entire rates page content in a component
+function RatesContent() {
     const { data: session } = useSession();
     const [rates, setRates] = useState([]);
-    const [_loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingRate, setEditingRate] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -483,18 +473,46 @@ export default function RatesPage() {
             </div>
 
             {/* Modals */}
-            <RateStepModal
-                isOpen={showAddModal}
-                onClose={() => setShowAddModal(false)}
-                onSubmit={handleAddRate}
-            />
+            {showAddModal && (
+                <RateStepModal
+                    isOpen={showAddModal}
+                    onClose={() => setShowAddModal(false)}
+                    onSubmit={handleAddRate}
+                />
+            )}
 
-            <EditRateModal
-                isOpen={editingRate !== null}
-                onClose={() => setEditingRate(null)}
-                onSubmit={(data) => handleUpdateRate(editingRate?._id, data)}
-                rate={editingRate}
-            />
+            {editingRate && (
+                <EditRateModal
+                    isOpen={!!editingRate}
+                    onClose={() => setEditingRate(null)}
+                    onSubmit={(data) => handleUpdateRate(editingRate._id, data)}
+                    rate={editingRate}
+                />
+            )}
         </div>
+    );
+}
+
+// Dynamically import modals
+const RateStepModal = dynamic(() => import('@/app/components/admin/RateStepModal'), {
+    ssr: false,
+    loading: () => <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#C6082C]"></div>
+});
+
+const EditRateModal = dynamic(() => import('@/app/components/admin/EditRateModal'), {
+    ssr: false,
+    loading: () => <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#C6082C]"></div>
+});
+
+// Main page component with Suspense
+export default function RatesPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#C6082C]"></div>
+            </div>
+        }>
+            <RatesContent />
+        </Suspense>
     );
 } 
