@@ -35,7 +35,7 @@ export default function RatesPage() {
 
     const fetchRates = useCallback(async () => {
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/rates', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`
                 }
@@ -59,7 +59,7 @@ export default function RatesPage() {
 
     const handleAddRate = async (rateData) => {
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/rates', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export default function RatesPage() {
         }
 
         try {
-            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/rates/${rateId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rateId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`
@@ -111,7 +111,7 @@ export default function RatesPage() {
 
     const handleUpdateRate = async (rateId, updatedData) => {
         try {
-            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/rates/${rateId}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rateId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
