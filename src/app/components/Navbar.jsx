@@ -10,6 +10,13 @@ export default function Navbar() {
     const { data: session } = useSession();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+    const handleSignOut = async () => {
+        await signOut({ 
+            callbackUrl: 'https://goodrichlogisticsratecard.netlify.app/',
+            redirect: true 
+        });
+    };
+
     return (
         <nav className="fixed w-full z-50 top-0 bg-[#C6082C] shadow-lg h-16">
             <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
@@ -50,7 +57,7 @@ export default function Navbar() {
                                             </Link>
                                         )}
                                         <button
-                                            onClick={() => signOut()}
+                                            onClick={handleSignOut}
                                             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >
                                             <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
