@@ -15,7 +15,7 @@ export default function ShippingLinesManager() {
 
     const fetchShippingLines = async () => {
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/shipping-lines');
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/shipping-lines');
             const data = await response.json();
             setShippingLines(data);
         } catch (error) {
@@ -25,7 +25,7 @@ export default function ShippingLinesManager() {
 
     const handleAddLine = async () => {
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/shipping-lines', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/shipping-lines', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newLine),

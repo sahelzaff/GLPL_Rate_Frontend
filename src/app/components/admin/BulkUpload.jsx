@@ -9,7 +9,7 @@ export default function BulkUpload() {
 
     const downloadTemplate = async () => {
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/template/download');
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/template/download');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -35,7 +35,7 @@ export default function BulkUpload() {
             setMessage('');
             setError('');
 
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/rates/bulk', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates/bulk', {
                 method: 'POST',
                 body: formData,
             });

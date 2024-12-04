@@ -31,7 +31,7 @@ export default function AdminAutocomplete({
     const fetchSuggestions = async (inputValue) => {
         try {
             const response = await fetch(
-                `https://glplratebackend-production.up.railway.app//api/search-ports?term=${encodeURIComponent(inputValue)}&field=${field}`
+                `https://glplratebackend-production.up.railway.app/api/search-ports?term=${encodeURIComponent(inputValue)}&field=${field}`
             );
             if (!response.ok) throw new Error('Failed to fetch suggestions');
             const data = await response.json();

@@ -18,7 +18,7 @@ export default function BulkUploadTab({ type }) {
         
         setDownloading(true);
         try {
-            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/templates/${type}`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/templates/${type}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`,
@@ -74,7 +74,7 @@ export default function BulkUploadTab({ type }) {
         formData.append('file', file);
 
         try {
-            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/${type}/preview`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/${type}/preview`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`
@@ -107,7 +107,7 @@ export default function BulkUploadTab({ type }) {
 
         setUploading(true);
         try {
-            const response = await fetch(`https://glplratebackend-production.up.railway.app//api/${type}/bulk`, {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/${type}/bulk`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session?.accessToken}`

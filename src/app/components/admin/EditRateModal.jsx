@@ -57,7 +57,7 @@ export default function EditRateModal({ isOpen, onClose, onSubmit, rate }) {
 
     const fetchShippingLines = useCallback(async () => {
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/shipping-lines');
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/shipping-lines');
             const data = await response.json();
             setShippingLines(data);
         } catch (error) {
@@ -68,7 +68,7 @@ export default function EditRateModal({ isOpen, onClose, onSubmit, rate }) {
 
     const fetchPorts = useCallback(async () => {
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/ports');
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/ports');
             const data = await response.json();
             setPorts(data);
         } catch (error) {
