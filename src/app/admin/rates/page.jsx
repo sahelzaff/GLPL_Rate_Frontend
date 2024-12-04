@@ -22,7 +22,8 @@ import toast from 'react-hot-toast';
 
 // Wrap the entire rates page content in a component
 function RatesContent() {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
+    const router = useRouter();
     const [rates, setRates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -34,20 +35,38 @@ function RatesContent() {
         direction: 'desc'
     });
 
+    // Add authentication check
+    useEffect(() => {
+        if (status === 'unauthenticated') {
+            router.push('/auth/login');
+            return;
+        }
+        if (session?.user?.role !== 'admin') {
+            router.push('/');
+            toast.error('Admin access required');
+            return;
+        }
+    }, [session, status, router]);
+
     const fetchRates = useCallback(async () => {
+        if (!session?.accessToken) return;
+        
         try {
+            setLoading(true);
             const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
                 headers: {
-                    'Authorization': `Bearer ${session?.accessToken}`
+                    'Authorization': `Bearer ${session.accessToken}`,
+                    'Content-Type': 'application/json'
                 }
             });
+
             if (!response.ok) {
                 throw new Error('Failed to fetch rates');
             }
+
             const data = await response.json();
-            setRates(data);
+            setRates(Array.isArray(data) ? data : []);
         } catch (error) {
-            console.error('Error fetching rates:', error);
             toast.error('Failed to fetch rates');
         } finally {
             setLoading(false);
@@ -55,8 +74,18 @@ function RatesContent() {
     }, [session?.accessToken]);
 
     useEffect(() => {
-        fetchRates();
-    }, [fetchRates]);
+        if (session?.accessToken) {
+            fetchRates();
+        }
+    }, [fetchRates, session?.accessToken]);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#C6082C]"></div>
+            </div>
+        );
+    }
 
     const handleAddRate = async (rateData) => {
         try {
