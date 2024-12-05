@@ -146,48 +146,4 @@ export const getAllRates = async () => {
         console.error('Error fetching all rates:', error);
         throw error;
     }
-};
-
-export const getRates = async () => {
-    try {
-        const response = await fetch(`${API_URL}api/rates`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${session?.accessToken}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch rates');
-        }
-
-        const data = await response.json();
-        return data.data;
-    } catch (error) {
-        console.error('Error fetching rates:', error);
-        throw error;
-    }
-};
-
-export const createRate = async (rateData) => {
-    try {
-        const response = await fetch(`${API_URL}api/rates`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.accessToken}`
-            },
-            body: JSON.stringify(rateData)
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to create rate');
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Error creating rate:', error);
-        throw error;
-    }
 }; 
