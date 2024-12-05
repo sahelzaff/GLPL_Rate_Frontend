@@ -17,7 +17,6 @@ export default function RatesManager() {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingRate, setEditingRate] = useState(null);
-    const [_expandedRows, _setExpandedRows] = useState(() => new Set());
 
     const fetchRates = useCallback(async () => {
         if (!session?.accessToken) return;
@@ -27,14 +26,12 @@ export default function RatesManager() {
             const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${session.accessToken}`,
-                    'Accept': 'application/json'
+                    'Authorization': `Bearer ${session.accessToken}`
                 }
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch rates');
+                throw new Error('Failed to fetch rates');
             }
 
             const data = await response.json();
@@ -80,6 +77,29 @@ export default function RatesManager() {
         }
     };
 
+    const handleDeleteRate = async (rateId) => {
+        if (!confirm('Are you sure you want to delete this rate?')) return;
+
+        try {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rateId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session?.accessToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete rate');
+            }
+
+            await fetchRates();
+            toast.success('Rate deleted successfully');
+        } catch (error) {
+            console.error('Error deleting rate:', error);
+            toast.error('Failed to delete rate');
+        }
+    };
+
     const handleAddRate = async (rateData) => {
         try {
             const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
@@ -92,22 +112,24 @@ export default function RatesManager() {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to create rate');
+                throw new Error('Failed to add rate');
             }
 
             await fetchRates();
             setShowAddModal(false);
             toast.success('Rate added successfully');
         } catch (error) {
-            console.error('Error creating rate:', error);
-            toast.error(error.message || 'Failed to create rate');
-            throw error;
+            console.error('Error adding rate:', error);
+            toast.error('Failed to add rate');
         }
     };
 
     if (loading) {
-        return <LoadingSpinner />;
+        return (
+            <div className="flex justify-center items-center min-h-[200px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#C6082C]"></div>
+            </div>
+        );
     }
 
     return (
@@ -141,9 +163,22 @@ export default function RatesManager() {
                 rate={editingRate}
             />
 
-            {rates.map(rate => (
-                <RateCard key={rate.id} rate={rate} />
-            ))}
+            {rates.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                    No rates found
+                </div>
+            ) : (
+                <div className="grid gap-4">
+                    {rates.map(rate => (
+                        <RateCard 
+                            key={rate._id} 
+                            rate={rate}
+                            onEdit={() => setEditingRate(rate)}
+                            onDelete={handleDeleteRate}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 } 
