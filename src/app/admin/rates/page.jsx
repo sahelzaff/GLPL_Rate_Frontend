@@ -64,10 +64,13 @@ function RatesContent() {
                 throw new Error('Failed to fetch rates');
             }
 
-            const data = await response.json();
-            setRates(Array.isArray(data) ? data : []);
+            const responseData = await response.json();
+            const ratesData = responseData.data || [];
+            setRates(ratesData);
         } catch (error) {
+            console.error('Error fetching rates:', error);
             toast.error('Failed to fetch rates');
+            setRates([]);
         } finally {
             setLoading(false);
         }
@@ -258,40 +261,45 @@ function RatesContent() {
         }
     ];
 
-    const filteredRates = Array.isArray(rates) ? rates
-        .filter(rate => 
-            rate.pol?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            rate.pod?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            rate.shipping_line?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        .sort((a, b) => {
-            const direction = sortConfig.direction === 'asc' ? 1 : -1;
-            
-            switch (sortConfig.field) {
-                case 'created_at':
-                    return direction * (new Date(a.created_at) - new Date(b.created_at));
-                case 'valid_from':
-                    return direction * (new Date(a.valid_from) - new Date(b.valid_from));
-                case 'valid_to':
-                    return direction * (new Date(a.valid_to) - new Date(b.valid_to));
-                case 'shipping_line':
-                    return direction * a.shipping_line.localeCompare(b.shipping_line);
-                case 'pol':
-                    return direction * a.pol.localeCompare(b.pol);
-                case 'pod':
-                    return direction * a.pod.localeCompare(b.pod);
-                case 'lowest_rate':
-                    const aMin = Math.min(...a.container_rates.map(r => r.total_cost || r.rate || 0));
-                    const bMin = Math.min(...b.container_rates.map(r => r.total_cost || r.rate || 0));
-                    return direction * (aMin - bMin);
-                case 'highest_rate':
-                    const aMax = Math.max(...a.container_rates.map(r => r.total_cost || r.rate || 0));
-                    const bMax = Math.max(...b.container_rates.map(r => r.total_cost || r.rate || 0));
-                    return direction * (aMax - bMax);
-                default:
-                    return 0;
-            }
-        }) : [];
+    const filteredRates = searchTerm
+        ? rates.filter(rate => {
+            const searchLower = searchTerm.toLowerCase();
+            return (
+                (rate.pol?.toLowerCase() || '').includes(searchLower) ||
+                (rate.pod?.toLowerCase() || '').includes(searchLower) ||
+                (rate.shipping_line?.toLowerCase() || '').includes(searchLower)
+            );
+        })
+        : rates;
+
+    const sortedRates = [...filteredRates].sort((a, b) => {
+        const direction = sortConfig.direction === 'asc' ? 1 : -1;
+        
+        switch (sortConfig.field) {
+            case 'created_at':
+                return direction * (new Date(a.created_at) - new Date(b.created_at));
+            case 'valid_from':
+                return direction * (new Date(a.valid_from) - new Date(b.valid_from));
+            case 'valid_to':
+                return direction * (new Date(a.valid_to) - new Date(b.valid_to));
+            case 'shipping_line':
+                return direction * a.shipping_line.localeCompare(b.shipping_line);
+            case 'pol':
+                return direction * a.pol.localeCompare(b.pol);
+            case 'pod':
+                return direction * a.pod.localeCompare(b.pod);
+            case 'lowest_rate':
+                const aMin = Math.min(...a.container_rates.map(r => r.total_cost || r.rate || 0));
+                const bMin = Math.min(...b.container_rates.map(r => r.total_cost || r.rate || 0));
+                return direction * (aMin - bMin);
+            case 'highest_rate':
+                const aMax = Math.max(...a.container_rates.map(r => r.total_cost || r.rate || 0));
+                const bMax = Math.max(...b.container_rates.map(r => r.total_cost || r.rate || 0));
+                return direction * (aMax - bMax);
+            default:
+                return 0;
+        }
+    });
 
     return (
         <div className="space-y-6">
@@ -402,7 +410,7 @@ function RatesContent() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredRates.map((rate) => (
+                        {sortedRates.map((rate) => (
                             <React.Fragment key={rate._id}>
                                 <tr className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
