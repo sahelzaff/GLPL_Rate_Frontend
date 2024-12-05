@@ -23,19 +23,30 @@ export default function RatesManager() {
         if (!session?.accessToken) return;
         
         try {
+            setLoading(true);
             const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
+                method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${session.accessToken}`
+                    'Authorization': `Bearer ${session.accessToken}`,
+                    'Accept': 'application/json'
                 }
             });
+
             if (!response.ok) {
-                throw new Error('Failed to fetch rates');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to fetch rates');
             }
+
             const data = await response.json();
-            setRates(data);
+            if (data.status === 'success' && Array.isArray(data.data)) {
+                setRates(data.data);
+            } else {
+                setRates([]);
+            }
         } catch (error) {
             console.error('Error fetching rates:', error);
             toast.error('Failed to fetch rates');
+            setRates([]);
         } finally {
             setLoading(false);
         }
