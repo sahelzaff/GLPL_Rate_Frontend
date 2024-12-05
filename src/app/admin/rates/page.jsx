@@ -92,7 +92,7 @@ function RatesContent() {
             const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
                 method: 'POST',
                 headers: {
-                    
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.accessToken}`
                 },
                 body: JSON.stringify(rateData)
@@ -144,7 +144,7 @@ function RatesContent() {
             const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rateId}`, {
                 method: 'PUT',
                 headers: {
-                    
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.accessToken}`
                 },
                 body: JSON.stringify(updatedData)

@@ -28,7 +28,7 @@ export default function RatesManager() {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
-                    // 'Accept': 'application/json'
+                    'Accept': 'application/json'
                 }
             });
 
@@ -61,7 +61,7 @@ export default function RatesManager() {
             const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rateId}`, {
                 method: 'PUT',
                 headers: {
-                    // 'Content-Type': 'application/json',
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.accessToken}`
                 },
                 body: JSON.stringify(data)
@@ -85,7 +85,7 @@ export default function RatesManager() {
             const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates', {
                 method: 'POST',
                 headers: {
-                    // 'Content-Type': 'application/json',
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.accessToken}`
                 },
                 body: JSON.stringify(rateData)
