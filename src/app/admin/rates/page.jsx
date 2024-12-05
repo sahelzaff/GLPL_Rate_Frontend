@@ -96,7 +96,36 @@ function RatesContent() {
         }
     };
 
-    const handleUpdateRate = async (rateId, data) => {
+    const handleDeleteRate = async (rateId) => {
+        if (!window.confirm('Are you sure you want to delete this rate?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rateId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session?.accessToken}`
+                }
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to delete rate');
+            }
+
+            if (data.status === 'success') {
+                toast.success('Rate deleted successfully');
+                await fetchRates();
+            } else {
+                throw new Error(data.message || 'Failed to delete rate');
+            }
+        } catch (error) {
+            console.error('Error deleting rate:', error);
+            toast.error(error.message || 'Failed to delete rate');
+        }
+    };
+
+    const handleUpdateRate = async (rateId, updatedData) => {
         try {
             const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rateId}`, {
                 method: 'PUT',
@@ -104,21 +133,20 @@ function RatesContent() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session?.accessToken}`
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify(updatedData)
             });
 
+            const data = await response.json();
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to update rate');
+                throw new Error(data.message || 'Failed to update rate');
             }
 
-            const responseData = await response.json();
-            if (responseData.status === 'success') {
+            if (data.status === 'success') {
                 toast.success('Rate updated successfully');
-            setEditingRate(null);
-                fetchRates();
+                setEditingRate(null);
+                await fetchRates();
             } else {
-                throw new Error(responseData.message || 'Failed to update rate');
+                throw new Error(data.message || 'Failed to update rate');
             }
         } catch (error) {
             console.error('Error updating rate:', error);
