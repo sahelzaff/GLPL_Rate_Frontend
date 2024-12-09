@@ -17,6 +17,7 @@
     "dotenv": "^16.4.5",
     "framer-motion": "^11.11.17",
     "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.21",
     "mongoose": "^8.8.2",
     "next": "15.0.3",
     "next-auth": "^4.24.10",
@@ -29,13 +30,13 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.0.0",
     "eslint-config-next": "^13.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
-    "typescript": "^4.9.5",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.15"
+    "tailwindcss": "^3.4.15",
+    "typescript": "^4.9.5"
   }
 }
