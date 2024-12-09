@@ -1,17 +1,21 @@
 'use client';
-import React, { Suspense } from 'react';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { 
     MagnifyingGlassIcon,
+    CalendarIcon,
+    TruckIcon,
+    GlobeAltIcon,
     ArrowLongRightIcon,
     DocumentTextIcon,
     CurrencyDollarIcon,
     BuildingOffice2Icon,
     ClockIcon,
     CheckBadgeIcon,
+    ExclamationCircleIcon,
     CheckIcon,
     XMarkIcon
 } from "@heroicons/react/24/outline";
@@ -24,49 +28,45 @@ import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
 const getRateHighlights = (results) => {
-    // Ensure results is an array before processing
-    if (!Array.isArray(results) || results.length === 0) {
-        return {
-            lowestRate: null,
-            highestRate: null,
-            averageRate: null,
-            totalRates: 0,
-            shippingLines: []
-        };
-    }
+    if (!results.length) return null;
 
-    let lowestRate = Infinity;
-    let highestRate = -Infinity;
-    let totalRate = 0;
-    let shippingLines = new Set();
-    let validRatesCount = 0;
-
-    results.forEach(rate => {
-        if (rate.container_rates && Array.isArray(rate.container_rates)) {
-            rate.container_rates.forEach(containerRate => {
-                if (containerRate.rate) {
-                    const rateValue = parseFloat(containerRate.rate);
-                    if (!isNaN(rateValue)) {
-                        lowestRate = Math.min(lowestRate, rateValue);
-                        highestRate = Math.max(highestRate, rateValue);
-                        totalRate += rateValue;
-                        validRatesCount++;
-                    }
-                }
-            });
-        }
-        if (rate.shipping_line) {
-            shippingLines.add(rate.shipping_line);
-        }
-    });
-
-    return {
-        lowestRate: lowestRate === Infinity ? null : lowestRate,
-        highestRate: highestRate === -Infinity ? null : highestRate,
-        averageRate: validRatesCount > 0 ? totalRate / validRatesCount : null,
-        totalRates: validRatesCount,
-        shippingLines: Array.from(shippingLines)
+    const getLowestRate = (containerRates) => {
+        return Math.min(...containerRates.map(r => {
+            if (r.total_cost !== undefined && r.total_cost !== null) return r.total_cost;
+            if (r.base_rate !== undefined && r.base_rate !== null) return r.base_rate;
+            if (r.rate !== undefined && r.rate !== null) return r.rate;
+            return Infinity;
+        }));
     };
+
+    const highlights = {
+        recommended: null,
+        cheapest: null,
+        fastest: null
+    };
+
+    // Get the cheapest rate
+    highlights.cheapest = results.reduce((min, current) => {
+        const minRate = getLowestRate(min.containerRates);
+        const currentRate = getLowestRate(current.containerRates);
+        return currentRate < minRate ? current : min;
+    }, results[0]);
+
+    // Get the fastest based on transit time
+    highlights.fastest = results.reduce((fastest, current) => {
+        if (!current.transitTime) return fastest;
+        if (!fastest.transitTime) return current;
+        return current.transitTime < fastest.transitTime ? current : fastest;
+    }, results[0]);
+
+    // Get recommended based on a combination of factors
+    highlights.recommended = results.reduce((recommended, current) => {
+        const currentScore = calculateRecommendationScore(current);
+        const recommendedScore = calculateRecommendationScore(recommended);
+        return currentScore > recommendedScore ? current : recommended;
+    }, results[0]);
+
+    return highlights;
 };
 
 const calculateRecommendationScore = (rate) => {
@@ -531,7 +531,7 @@ const saveToRecentSearches = (polCode, podCode, polName, podName) => {
   localStorage.setItem('recentSearches', JSON.stringify(searches));
 };
 
-function ResultsContent() {
+export default function Results() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const searchParams = useSearchParams();
@@ -548,59 +548,43 @@ function ResultsContent() {
         cheapest: React.useRef(null),
         fastest: React.useRef(null)
     };
-    const [searchResults, setSearchResults] = useState([]);
-    const [pol, setPol] = useState(null);
-    const [pod, setPod] = useState(null);
+
+    // Get current pol and pod from searchParams
+    const currentPol = searchParams.get('pol');
+    const currentPod = searchParams.get('pod');
 
     const handleSearch = async (pol, pod) => {
         try {
-            // Validate inputs
-            if (!pol?.code || !pod?.code) {
-                setError('Both origin and destination ports are required');
-                setResults([]);
-                setFilteredResults([]);
-                return;
-            }
-
             setLoading(true);
             setError(null);
 
-            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates/search', {
+            const response = await fetch('http://localhost:5001/api/rates/search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    pol_code: pol.code,
-                    pod_code: pod.code
+                    pol_code: pol,
+                    pod_code: pod
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch rates');
+                throw new Error(errorData.error || 'Failed to fetch rates');
             }
 
             const data = await response.json();
-            
-            if (data.status === 'success' && data.data && Array.isArray(data.data.data)) {
-                setResults(data.data.data);
-                setFilteredResults(data.data.data);
-            } else {
-                setResults([]);
-                setFilteredResults([]);
-            }
+            setResults(data);
         } catch (err) {
             console.error('Error fetching results:', err);
             setError(err.message || 'Failed to fetch results. Please try again.');
             setResults([]);
-            setFilteredResults([]);
         } finally {
             setLoading(false);
         }
     };
 
-    // Initial load effect
     useEffect(() => {
         if (status === 'loading') return;
 
@@ -609,14 +593,15 @@ function ResultsContent() {
             return;
         }
 
-        const polParam = searchParams.get('pol');
-        const podParam = searchParams.get('pod');
+        const pol = searchParams.get('pol');
+        const pod = searchParams.get('pod');
 
-        if (!polParam || !podParam) {
+        if (!pol || !pod) {
+            // Check for stored search params
             const storedSearch = localStorage.getItem('searchParams');
             if (storedSearch) {
                 const { pol: storedPol, pod: storedPod } = JSON.parse(storedSearch);
-                localStorage.removeItem('searchParams');
+                localStorage.removeItem('searchParams'); // Clean up
                 router.push(`/results?pol=${encodeURIComponent(storedPol)}&pod=${encodeURIComponent(storedPod)}`);
             } else {
                 router.push('/');
@@ -624,26 +609,26 @@ function ResultsContent() {
             return;
         }
 
-        // Set the new POL/POD values
-        setNewPol(polParam);
-        setNewPod(podParam);
-
-        // Create proper port objects
-        const polObject = { code: polParam };
-        const podObject = { code: podParam };
-        
-        handleSearch(polObject, podObject);
+        setNewPol(pol);
+        setNewPod(pod);
+        handleSearch(pol, pod);
     }, [status, searchParams, router]);
 
-    const handleNewSearch = () => {
+    const handleNewSearch = async () => {
         if (!newPol || !newPod) {
-            setSearchError('Please select both origin and destination ports');
+            setSearchError('Please enter both POL and POD');
             return;
         }
 
-        setSearchError('');
-        const searchQuery = `?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`;
-        router.push(`/results${searchQuery}`);
+        // Get the full port names from the input fields
+        const polInput = document.querySelector('input[placeholder="Enter POL"]');
+        const podInput = document.querySelector('input[placeholder="Enter POD"]');
+        
+        if (polInput && podInput && polInput.value && podInput.value) {
+            saveToRecentSearches(newPol, newPod, polInput.value, podInput.value);
+        }
+
+        router.push(`/results?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`);
     };
 
     const getContainerIcon = (type) => {
@@ -786,7 +771,6 @@ function ResultsContent() {
     }
 
     return (
-    
         <div className="min-h-screen bg-gray-50">
             <Navbar />
             <main className="container mx-auto px-4 py-8 mt-16">
@@ -841,17 +825,5 @@ function ResultsContent() {
                 </div>
             </main>
         </div>
-    );
-}
-
-export default function Results() {
-    return (
-        <Suspense fallback={
-            <div className="flex justify-center items-center min-h-screen">
-                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#C6082C]"></div>
-            </div>
-        }>
-            <ResultsContent />
-        </Suspense>
     );
 } 
