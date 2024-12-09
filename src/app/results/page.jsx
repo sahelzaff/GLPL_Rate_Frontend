@@ -552,14 +552,10 @@ function ResultsContent() {
     const [pol, setPol] = useState(null);
     const [pod, setPod] = useState(null);
 
-    // Get current pol and pod from searchParams
-    const currentPol = searchParams.get('pol');
-    const currentPod = searchParams.get('pod');
-
     const handleSearch = async (pol, pod) => {
         try {
             // Validate inputs
-            if (!pol || !pod) {
+            if (!pol?.code || !pod?.code) {
                 setError('Both origin and destination ports are required');
                 setResults([]);
                 setFilteredResults([]);
@@ -575,8 +571,8 @@ function ResultsContent() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    pol_code: pol.trim().toUpperCase(),
-                    pod_code: pod.trim().toUpperCase()
+                    pol_code: pol.code,
+                    pod_code: pod.code
                 })
             });
 
@@ -587,7 +583,6 @@ function ResultsContent() {
 
             const data = await response.json();
             
-            // Ensure we're setting an array for results
             if (data.status === 'success' && data.data && Array.isArray(data.data.data)) {
                 setResults(data.data.data);
                 setFilteredResults(data.data.data);
@@ -605,6 +600,7 @@ function ResultsContent() {
         }
     };
 
+    // Initial load effect
     useEffect(() => {
         if (status === 'loading') return;
 
@@ -613,15 +609,14 @@ function ResultsContent() {
             return;
         }
 
-        const pol = searchParams.get('pol');
-        const pod = searchParams.get('pod');
+        const polParam = searchParams.get('pol');
+        const podParam = searchParams.get('pod');
 
-        if (!pol || !pod) {
-            // Check for stored search params
+        if (!polParam || !podParam) {
             const storedSearch = localStorage.getItem('searchParams');
             if (storedSearch) {
                 const { pol: storedPol, pod: storedPod } = JSON.parse(storedSearch);
-                localStorage.removeItem('searchParams'); // Clean up
+                localStorage.removeItem('searchParams');
                 router.push(`/results?pol=${encodeURIComponent(storedPol)}&pod=${encodeURIComponent(storedPod)}`);
             } else {
                 router.push('/');
@@ -629,9 +624,15 @@ function ResultsContent() {
             return;
         }
 
-        setNewPol(pol);
-        setNewPod(pod);
-        handleSearch(pol, pod);
+        // Set the new POL/POD values
+        setNewPol(polParam);
+        setNewPod(podParam);
+
+        // Create proper port objects
+        const polObject = { code: polParam };
+        const podObject = { code: podParam };
+        
+        handleSearch(polObject, podObject);
     }, [status, searchParams, router]);
 
     const handleNewSearch = () => {
@@ -772,35 +773,6 @@ function ResultsContent() {
             }
         }
     };
-
-    const fetchResults = async () => {
-        if (!pol || !pod) return;
-        
-        try {
-            setLoading(true);
-            const response = await searchRates(pol, pod);
-            
-            if (response.status === 'success') {
-                setSearchResults(response.data || []);
-            } else {
-                toast.error(response.message || 'Failed to fetch rates');
-                setSearchResults([]);
-            }
-            
-        } catch (error) {
-            console.error('Error fetching results:', error);
-            toast.error('Failed to fetch rates');
-            setSearchResults([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (pol && pod) {
-            fetchResults();
-        }
-    }, [pol, pod]);
 
     if (loading) {
         return (
