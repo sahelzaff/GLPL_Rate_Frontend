@@ -615,16 +615,12 @@ function ResultsContent() {
                     pod: rate.pod || 'Unknown',
                     valid_from: rate.valid_from || '',
                     valid_to: rate.valid_to || '',
-                    container_rates: rate.container_rates || [],
-                    containerRates: rate.container_rates || [] // Add this for compatibility
+                    container_rates: rate.container_rates || []
                 }));
 
                 setResults(processedRates);
                 setFilteredResults(processedRates);
-
-                // Calculate highlights after setting results
-                const highlights = calculateHighlights(processedRates);
-                setHighlights(highlights);
+                setHighlights(calculateHighlights(processedRates));
             } else {
                 setError(responseData.data?.message || 'No rates found');
                 setResults([]);
@@ -653,38 +649,20 @@ function ResultsContent() {
         const pol = searchParams.get('pol');
         const pod = searchParams.get('pod');
 
-        if (!pol || !pod) {
-            // Check for stored search params
-            const storedSearch = localStorage.getItem('searchParams');
-            if (storedSearch) {
-                const { pol: storedPol, pod: storedPod } = JSON.parse(storedSearch);
-                localStorage.removeItem('searchParams'); // Clean up
-                router.push(`/results?pol=${encodeURIComponent(storedPol)}&pod=${encodeURIComponent(storedPod)}`);
-            } else {
-                router.push('/');
-            }
-            return;
+        if (pol && pod) {
+            setNewPol(pol);
+            setNewPod(pod);
+            handleSearch(pol, pod);
         }
+    }, [status, searchParams]);
 
-        setNewPol(pol);
-        setNewPod(pod);
-        handleSearch(pol, pod);
-    }, [status, searchParams, router]);
-
-    const handleNewSearch = async () => {
+    const handleNewSearch = () => {
         if (!newPol || !newPod) {
-            setSearchError('Please enter both POL and POD');
+            setSearchError('Please select both origin and destination ports');
             return;
         }
 
-        // Get the full port names from the input fields
-        const polInput = document.querySelector('input[placeholder="Enter POL"]');
-        const podInput = document.querySelector('input[placeholder="Enter POD"]');
-        
-        if (polInput && podInput && polInput.value && podInput.value) {
-            saveToRecentSearches(newPol, newPod, polInput.value, podInput.value);
-        }
-
+        setSearchError('');
         router.push(`/results?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`);
     };
 
