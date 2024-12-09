@@ -574,16 +574,17 @@ function ResultsContent() {
 
             const data = await response.json();
             
-            if (data.status === 'success' && data.data && Array.isArray(data.data.data)) {
-                setResults(data.data.data);
-                setFilteredResults(data.data.data);
+            if (data.status === 'success') {
+                setResults(data.data || []);
+                setFilteredResults(data.data || []);
             } else {
+                setError(data.message || 'Failed to fetch rates');
                 setResults([]);
                 setFilteredResults([]);
             }
         } catch (err) {
             console.error('Error fetching results:', err);
-            setError(err.message || 'Failed to fetch results. Please try again.');
+            setError('Failed to fetch results. Please try again.');
             setResults([]);
             setFilteredResults([]);
         } finally {
@@ -602,22 +603,12 @@ function ResultsContent() {
         const polParam = searchParams.get('pol');
         const podParam = searchParams.get('pod');
 
-        if (!polParam || !podParam) {
-            const storedSearch = localStorage.getItem('searchParams');
-            if (storedSearch) {
-                const { pol: storedPol, pod: storedPod } = JSON.parse(storedSearch);
-                localStorage.removeItem('searchParams');
-                router.push(`/results?pol=${encodeURIComponent(storedPol)}&pod=${encodeURIComponent(storedPod)}`);
-            } else {
-                router.push('/');
-            }
-            return;
-        }
-
+        if (polParam && podParam) {
+            handleSearch(polParam, podParam);
         setNewPol(polParam);
         setNewPod(podParam);
-        handleSearch(polParam, podParam);
-    }, [status, searchParams, router]);
+        }
+    }, [status, searchParams]);
 
     const handleNewSearch = () => {
         if (!newPol || !newPod) {

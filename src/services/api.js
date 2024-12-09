@@ -67,29 +67,20 @@ export const deleteUser = async (userId) => {
     });
 };
 
-export const searchRates = async (pol, pod) => {
+export const searchRates = async (polCode, podCode) => {
     try {
-        if (!pol?.code || !pod?.code) {
-            throw new Error('Invalid port codes');
-        }
-
         const response = await fetch(`${API_URL}api/rates/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                pol_code: pol.code,
-                pod_code: pod.code
+                pol_code: polCode,
+                pod_code: podCode
             })
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch rates');
-        }
-
-        const data = await response.json();
-        return data;
+        return await response.json();
     } catch (error) {
         console.error('Error fetching rates:', error);
         throw error;
