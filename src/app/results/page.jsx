@@ -193,10 +193,10 @@ const SearchSection = ({ newPol, setNewPol, newPod, setNewPod, handleNewSearch, 
 };
 
 const getShippingLineLogo = (shippingLineName) => {
-    const name = shippingLineName.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+    // const name = shippingLineName.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     
-    console.log('Shipping Line Name:', shippingLineName);
-    console.log('Processed Name:', name);
+    // console.log('Shipping Line Name:', shippingLineName);
+    // console.log('Processed Name:', name);
 
     if (name.includes('maersk')) {
         console.log('Maersk logo path:', assets.maersk);
