@@ -6,12 +6,16 @@ import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { 
     MagnifyingGlassIcon,
+    CalendarIcon,
+    TruckIcon,
+    GlobeAltIcon,
     ArrowLongRightIcon,
     DocumentTextIcon,
     CurrencyDollarIcon,
     BuildingOffice2Icon,
     ClockIcon,
     CheckBadgeIcon,
+    ExclamationCircleIcon,
     CheckIcon,
     XMarkIcon
 } from "@heroicons/react/24/outline";
@@ -24,49 +28,45 @@ import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
 const getRateHighlights = (results) => {
-    // Ensure results is an array before processing
-    if (!Array.isArray(results) || results.length === 0) {
-        return {
-            lowestRate: null,
-            highestRate: null,
-            averageRate: null,
-            totalRates: 0,
-            shippingLines: []
-        };
-    }
+    if (!results.length) return null;
 
-    let lowestRate = Infinity;
-    let highestRate = -Infinity;
-    let totalRate = 0;
-    let shippingLines = new Set();
-    let validRatesCount = 0;
-
-    results.forEach(rate => {
-        if (rate.container_rates && Array.isArray(rate.container_rates)) {
-            rate.container_rates.forEach(containerRate => {
-                if (containerRate.rate) {
-                    const rateValue = parseFloat(containerRate.rate);
-                    if (!isNaN(rateValue)) {
-                        lowestRate = Math.min(lowestRate, rateValue);
-                        highestRate = Math.max(highestRate, rateValue);
-                        totalRate += rateValue;
-                        validRatesCount++;
-                    }
-                }
-            });
-        }
-        if (rate.shipping_line) {
-            shippingLines.add(rate.shipping_line);
-        }
-    });
-
-    return {
-        lowestRate: lowestRate === Infinity ? null : lowestRate,
-        highestRate: highestRate === -Infinity ? null : highestRate,
-        averageRate: validRatesCount > 0 ? totalRate / validRatesCount : null,
-        totalRates: validRatesCount,
-        shippingLines: Array.from(shippingLines)
+    const getLowestRate = (containerRates) => {
+        return Math.min(...containerRates.map(r => {
+            if (r.total_cost !== undefined && r.total_cost !== null) return r.total_cost;
+            if (r.base_rate !== undefined && r.base_rate !== null) return r.base_rate;
+            if (r.rate !== undefined && r.rate !== null) return r.rate;
+            return Infinity;
+        }));
     };
+
+    const highlights = {
+        recommended: null,
+        cheapest: null,
+        fastest: null
+    };
+
+    // Get the cheapest rate
+    highlights.cheapest = results.reduce((min, current) => {
+        const minRate = getLowestRate(min.containerRates);
+        const currentRate = getLowestRate(current.containerRates);
+        return currentRate < minRate ? current : min;
+    }, results[0]);
+
+    // Get the fastest based on transit time
+    highlights.fastest = results.reduce((fastest, current) => {
+        if (!current.transitTime) return fastest;
+        if (!fastest.transitTime) return current;
+        return current.transitTime < fastest.transitTime ? current : fastest;
+    }, results[0]);
+
+    // Get recommended based on a combination of factors
+    highlights.recommended = results.reduce((recommended, current) => {
+        const currentScore = calculateRecommendationScore(current);
+        const recommendedScore = calculateRecommendationScore(recommended);
+        return currentScore > recommendedScore ? current : recommended;
+    }, results[0]);
+
+    return highlights;
 };
 
 const calculateRecommendationScore = (rate) => {
@@ -558,7 +558,7 @@ function ResultsContent() {
             setLoading(true);
             setError(null);
 
-            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates/search', {
+            const response = await fetch('http://localhost:5001/api/rates/search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
