@@ -549,6 +549,9 @@ function ResultsContent() {
         fastest: React.useRef(null)
     };
 
+    const currentPol = searchParams.get('pol');
+    const currentPod = searchParams.get('pod');
+
     const handleSearch = async (polCode, podCode) => {
         try {
             if (!polCode || !podCode) {
@@ -572,11 +575,6 @@ function ResultsContent() {
                 })
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch rates');
-            }
-
             const data = await response.json();
             
             if (data.status === 'success' && data.data && Array.isArray(data.data.data)) {
@@ -595,6 +593,13 @@ function ResultsContent() {
             setLoading(false);
         }
     };
+
+    // Initial search effect
+    useEffect(() => {
+        if (currentPol && currentPod) {
+            handleSearch(currentPol, currentPod);
+        }
+    }, [currentPol, currentPod]);
 
     // Initial load effect
     useEffect(() => {
