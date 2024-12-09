@@ -578,11 +578,20 @@ function ResultsContent() {
             }
 
             const data = await response.json();
-            setResults(data);
+            
+            // Ensure we're setting an array for results
+            if (data.status === 'success' && data.data && Array.isArray(data.data.data)) {
+                setResults(data.data.data);
+                setFilteredResults(data.data.data);
+            } else {
+                setResults([]);
+                setFilteredResults([]);
+            }
         } catch (err) {
             console.error('Error fetching results:', err);
             setError(err.message || 'Failed to fetch results. Please try again.');
             setResults([]);
+            setFilteredResults([]);
         } finally {
             setLoading(false);
         }
