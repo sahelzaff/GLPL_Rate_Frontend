@@ -558,6 +558,14 @@ function ResultsContent() {
 
     const handleSearch = async (pol, pod) => {
         try {
+            // Validate inputs
+            if (!pol || !pod) {
+                setError('Both origin and destination ports are required');
+                setResults([]);
+                setFilteredResults([]);
+                return;
+            }
+
             setLoading(true);
             setError(null);
 
@@ -567,14 +575,14 @@ function ResultsContent() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    pol_code: pol,
-                    pod_code: pod
+                    pol_code: pol.trim().toUpperCase(),
+                    pod_code: pod.trim().toUpperCase()
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to fetch rates');
+                throw new Error(errorData.message || 'Failed to fetch rates');
             }
 
             const data = await response.json();
@@ -626,21 +634,15 @@ function ResultsContent() {
         handleSearch(pol, pod);
     }, [status, searchParams, router]);
 
-    const handleNewSearch = async () => {
+    const handleNewSearch = () => {
         if (!newPol || !newPod) {
-            setSearchError('Please enter both POL and POD');
+            setSearchError('Please select both origin and destination ports');
             return;
         }
 
-        // Get the full port names from the input fields
-        const polInput = document.querySelector('input[placeholder="Enter POL"]');
-        const podInput = document.querySelector('input[placeholder="Enter POD"]');
-        
-        if (polInput && podInput && polInput.value && podInput.value) {
-            saveToRecentSearches(newPol, newPod, polInput.value, podInput.value);
-        }
-
-        router.push(`/results?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`);
+        setSearchError('');
+        const searchQuery = `?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`;
+        router.push(`/results${searchQuery}`);
     };
 
     const getContainerIcon = (type) => {
