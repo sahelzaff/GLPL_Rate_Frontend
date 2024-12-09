@@ -27,25 +27,29 @@ import toast from 'react-hot-toast';
 import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
-const getRateHighlights = (results) => {
-    if (!results || results.length === 0) return null;
+const getRateHighlights = (rates) => {
+    if (!Array.isArray(rates) || rates.length === 0) return null;
 
     const getLowestRate = (container_rates) => {
-        return Math.min(...container_rates.map(r => r.total || Infinity));
+        if (!Array.isArray(container_rates)) return Infinity;
+        return Math.min(...container_rates.map(r => r?.total || Infinity));
     };
 
-    let cheapest = results[0];
-    let fastest = results[0];
-    let recommended = results[0];
+    let cheapest = rates[0];
+    let fastest = rates[0];
+    let recommended = rates[0];
 
-    results.forEach(rate => {
-        // Find cheapest rate
-        if (getLowestRate(rate.container_rates) < getLowestRate(cheapest.container_rates)) {
+    rates.forEach(rate => {
+        if (rate && Array.isArray(rate.container_rates)) {
+            const currentRate = getLowestRate(rate.container_rates);
+            const cheapestRate = getLowestRate(cheapest.container_rates);
+            
+            if (currentRate < cheapestRate) {
             cheapest = rate;
+            }
         }
     });
 
-    // For now, set recommended same as cheapest since we don't have other metrics
     recommended = cheapest;
 
     return {
@@ -199,7 +203,7 @@ const getShippingLineLogo = (shippingLineName) => {
     // console.log('Processed Name:', name);
 
     if (name.includes('maersk')) {
-        console.log('Maersk logo path:', assets.maersk);
+        // console.log('Maersk logo path:', assets.maersk);
         return assets.maersk;
     }
     if (name.includes('hapag') || name.includes('lloyd')) {
@@ -370,7 +374,7 @@ const RateCard = ({ rate }) => {
                                     alt={rate.shippingLine}
                                     className="h-full w-full object-contain"
                                     onError={(e) => {
-                                        console.error('Image load error for:', rate.shippingLine);
+                                        // console.error('Image load error for:', rate.shippingLine);
                                         e.target.onerror = null; // Prevent infinite loop
                                         e.target.src = ''; // Clear the source
                                         e.target.style.display = 'none';
@@ -541,6 +545,14 @@ function ResultsContent() {
 
     const handleSearch = async (pol, pod) => {
         try {
+            if (!pol || !pod) {
+                setError('Both origin and destination ports are required');
+                setResults([]);
+                setFilteredResults([]);
+                setHighlights(null);
+                return;
+            }
+
             setLoading(true);
             setError(null);
 
@@ -558,12 +570,12 @@ function ResultsContent() {
             const data = await response.json();
 
             if (data.status === 'success' && data.data?.data) {
-                setResults(data.data.data);
-                setFilteredResults(data.data.data);
+                const ratesData = Array.isArray(data.data.data) ? data.data.data : [];
+                setResults(ratesData);
+                setFilteredResults(ratesData);
                 
-                // Calculate highlights if we have results
-                if (data.data.data.length > 0) {
-                    const highlights = getRateHighlights(data.data.data);
+                if (ratesData.length > 0) {
+                    const highlights = getRateHighlights(ratesData);
                     setHighlights(highlights);
                 } else {
                     setHighlights(null);
@@ -658,7 +670,7 @@ function ResultsContent() {
         // Debug shipping line logos
         results.forEach(result => {
             const logo = getShippingLineLogo(result.shippingLine);
-            console.log(`Shipping Line: ${result.shippingLine}, Logo Path: ${logo}`);
+            // console.log(`Shipping Line: ${result.shippingLine}, Logo Path: ${logo}`);
         });
     }, [results]);
 
@@ -674,21 +686,25 @@ function ResultsContent() {
             cma_cgm: assets.cma_cgm
         };
         
-        console.log('Available logo paths:', logos);
+        // console.log('Available logo paths:', logos);
         
         // Test image loading
         Object.entries(logos).forEach(([name, path]) => {
             const img = new Image();
-            img.onload = () => console.log(`✅ ${name} logo loaded successfully`);
-            img.onerror = () => console.error(`❌ Failed to load ${name} logo from: ${path}`);
+            // img.onload = () => console.log(`✅ ${name} logo loaded successfully`);
+            // img.onerror = () => console.error(`❌ Failed to load ${name} logo from: ${path}`);
             img.src = path;
         });
     }, []);
 
     useEffect(() => {
-        if (results.length > 0) {
+        if (Array.isArray(results) && results.length > 0) {
             setFilteredResults(results);
-            setHighlights(getRateHighlights(results));
+            const newHighlights = getRateHighlights(results);
+            setHighlights(newHighlights);
+        } else {
+            setFilteredResults([]);
+            setHighlights(null);
         }
     }, [results]);
 
