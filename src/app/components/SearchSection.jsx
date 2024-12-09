@@ -9,11 +9,15 @@ const SearchSection = ({
     pod 
 }) => {
     const handlePolChange = (value) => {
-        setNewPol(value?.code || '');
+        if (value && value.code) {
+            setNewPol(value.code);
+        }
     };
 
     const handlePodChange = (value) => {
-        setNewPod(value?.code || '');
+        if (value && value.code) {
+            setNewPod(value.code);
+        }
     };
 
     return (
