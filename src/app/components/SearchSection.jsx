@@ -29,7 +29,7 @@ const SearchSection = ({
                     </label>
                     <Autocomplete
                         type="pol"
-                        value={pol || ''}
+                        value={pol}
                         onChange={handlePolChange}
                         placeholder="Enter POL"
                     />
@@ -40,7 +40,7 @@ const SearchSection = ({
                     </label>
                     <Autocomplete
                         type="pod"
-                        value={pod || ''}
+                        value={pod}
                         onChange={handlePodChange}
                         placeholder="Enter POD"
                     />
@@ -57,4 +57,6 @@ const SearchSection = ({
             )}
         </div>
     );
-}; 
+};
+
+export default SearchSection; 
