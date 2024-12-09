@@ -1,101 +1,82 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import debounce from 'lodash/debounce';
-import { searchPorts } from '@/services/api';
+import { useState, useEffect } from 'react';
 
-export default function Autocomplete({ type, value, onChange, placeholder }) {
-    const [query, setQuery] = useState('');
+export default function Autocomplete({ _value, onChange, placeholder, initialValue }) {
+    const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    // Debounced search function
-    const debouncedSearch = useCallback(
-        debounce(async (searchTerm) => {
-            if (!searchTerm || searchTerm.trim().length < 2) {
-                setSuggestions([]);
-                return;
-            }
-
-            try {
-                setLoading(true);
-                const response = await fetch(`https://glplratebackend-production.up.railway.app/api/ports/search?term=${encodeURIComponent(searchTerm)}`);
-                const data = await response.json();
-                
-                if (response.ok) {
-                    setSuggestions(data || []);
-                } else {
-                    setSuggestions([]);
-                }
-            } catch (err) {
-                console.error('Error fetching suggestions:', err);
-                setError('Failed to fetch suggestions');
-                setSuggestions([]);
-            } finally {
-                setLoading(false);
-            }
-        }, 300),
-        []
-    );
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     useEffect(() => {
-        if (query) {
-            debouncedSearch(query);
-        } else {
+        const fetchInitialPort = async () => {
+            if (initialValue) {
+                try {
+                    const response = await fetch(`https://glplratebackend-production.up.railway.app/api/ports/search?term=${initialValue}`);
+                    const data = await response.json();
+                    if (data && data[0]) {
+                        setInputValue(data[0].label);
+                    }
+                } catch (error) {
+                    console.error('Error fetching initial port:', error);
+                }
+            }
+        };
+
+        fetchInitialPort();
+    }, [initialValue]);
+
+    const fetchSuggestions = async (searchTerm) => {
+        try {
+            const response = await fetch(`https://glplratebackend-production.up.railway.app/api/ports/search?term=${searchTerm}`);
+            const data = await response.json();
+            setSuggestions(data);
+            setShowSuggestions(true);
+        } catch (error) {
+            console.error('Error fetching suggestions:', error);
             setSuggestions([]);
         }
-    }, [query, debouncedSearch]);
+    };
 
     const handleInputChange = (e) => {
-        const value = e.target.value || '';
-        setQuery(value);
-        setError(null);
-    };
-
-    const handleSelect = (suggestion) => {
-        setQuery(`${suggestion.port_name} (${suggestion.port_code})`);
-        onChange({
-            code: suggestion.port_code,
-            name: suggestion.port_name
-        });
-        setSuggestions([]);
-    };
-
-    // Initialize input value from prop
-    useEffect(() => {
-        if (value) {
-            setQuery(value);
+        const value = e.target.value;
+        setInputValue(value);
+        if (value.length >= 2) {
+            fetchSuggestions(value);
+        } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
         }
-    }, [value]);
+    };
+
+    const handleSelect = (port) => {
+        setInputValue(port.label);
+        onChange(port.code);
+        setShowSuggestions(false);
+    };
 
     return (
         <div className="relative">
             <input
                 type="text"
-                value={query}
+                value={inputValue}
                 onChange={handleInputChange}
+                onFocus={() => inputValue.length >= 2 && setShowSuggestions(true)}
                 placeholder={placeholder}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C6082C] focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C6082C] focus:border-transparent"
             />
-            {loading && (
-                <div className="absolute right-3 top-3">
-                    <div className="animate-spin h-4 w-4 border-2 border-[#C6082C] border-t-transparent rounded-full"></div>
+
+            {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-auto">
+                    {suggestions.map((port, index) => (
+                        <div
+                            key={index}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => handleSelect(port)}
+                        >
+                            {port.label}
+                        </div>
+                    ))}
                 </div>
             )}
-            {suggestions.length > 0 && (
-                <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {suggestions.map((suggestion) => (
-                        <li
-                            key={suggestion._id}
-                            onClick={() => handleSelect(suggestion)}
-                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                            {suggestion.port_name} ({suggestion.port_code})
-                        </li>
-                    ))}
-                </ul>
-            )}
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
         </div>
     );
 } 

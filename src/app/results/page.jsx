@@ -23,30 +23,6 @@ import toast from 'react-hot-toast';
 import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
-const calculateHighlights = (rates) => {
-    if (!rates || rates.length === 0) return null;
-
-    let cheapest = rates[0];
-    let fastest = rates[0];
-    let recommended = rates[0];
-
-    rates.forEach(rate => {
-        // Compare total costs for 20ft container
-        const current20ft = rate.container_rates?.find(cr => cr.type === '20')?.total || Infinity;
-        const cheapest20ft = cheapest.container_rates?.find(cr => cr.type === '20')?.total || Infinity;
-        
-        if (current20ft < cheapest20ft) {
-            cheapest = rate;
-        }
-    });
-
-    return {
-        cheapest,
-        fastest,
-        recommended
-    };
-};
-
 const getRateHighlights = (results) => {
     // Ensure results is an array before processing
     if (!Array.isArray(results) || results.length === 0) {
@@ -577,16 +553,8 @@ function ResultsContent() {
     const currentPol = searchParams.get('pol');
     const currentPod = searchParams.get('pod');
 
-    const handleSearch = async (polCode, podCode) => {
+    const handleSearch = async (pol, pod) => {
         try {
-            if (!polCode || !podCode) {
-                setError('Both origin and destination ports are required');
-                setResults([]);
-                setFilteredResults([]);
-                setHighlights(null);
-                return;
-            }
-
             setLoading(true);
             setError(null);
 
@@ -596,43 +564,22 @@ function ResultsContent() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    pol_code: polCode,
-                    pod_code: podCode
+                    pol_code: pol,
+                    pod_code: pod
                 })
             });
 
-            const responseData = await response.json();
-            console.log('Search response:', responseData);
-            
-            if (responseData.status === 'success' && responseData.data?.data) {
-                const ratesArray = responseData.data.data;
-                
-                // Process the rates to ensure all required fields are present
-                const processedRates = ratesArray.map(rate => ({
-                    ...rate,
-                    shipping_line: rate.shipping_line || 'Unknown',
-                    pol: rate.pol || 'Unknown',
-                    pod: rate.pod || 'Unknown',
-                    valid_from: rate.valid_from || '',
-                    valid_to: rate.valid_to || '',
-                    container_rates: rate.container_rates || []
-                }));
-
-                setResults(processedRates);
-                setFilteredResults(processedRates);
-                setHighlights(calculateHighlights(processedRates));
-            } else {
-                setError(responseData.data?.message || 'No rates found');
-                setResults([]);
-                setFilteredResults([]);
-                setHighlights(null);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch rates');
             }
+
+            const data = await response.json();
+            setResults(data);
         } catch (err) {
             console.error('Error fetching results:', err);
-            setError('Failed to fetch results. Please try again.');
+            setError(err.message || 'Failed to fetch results. Please try again.');
             setResults([]);
-            setFilteredResults([]);
-            setHighlights(null);
         } finally {
             setLoading(false);
         }
@@ -649,20 +596,38 @@ function ResultsContent() {
         const pol = searchParams.get('pol');
         const pod = searchParams.get('pod');
 
-        if (pol && pod) {
-            setNewPol(pol);
-            setNewPod(pod);
-            handleSearch(pol, pod);
-        }
-    }, [status, searchParams]);
-
-    const handleNewSearch = () => {
-        if (!newPol || !newPod) {
-            setSearchError('Please select both origin and destination ports');
+        if (!pol || !pod) {
+            // Check for stored search params
+            const storedSearch = localStorage.getItem('searchParams');
+            if (storedSearch) {
+                const { pol: storedPol, pod: storedPod } = JSON.parse(storedSearch);
+                localStorage.removeItem('searchParams'); // Clean up
+                router.push(`/results?pol=${encodeURIComponent(storedPol)}&pod=${encodeURIComponent(storedPod)}`);
+            } else {
+                router.push('/');
+            }
             return;
         }
 
-        setSearchError('');
+        setNewPol(pol);
+        setNewPod(pod);
+        handleSearch(pol, pod);
+    }, [status, searchParams, router]);
+
+    const handleNewSearch = async () => {
+        if (!newPol || !newPod) {
+            setSearchError('Please enter both POL and POD');
+            return;
+        }
+
+        // Get the full port names from the input fields
+        const polInput = document.querySelector('input[placeholder="Enter POL"]');
+        const podInput = document.querySelector('input[placeholder="Enter POD"]');
+        
+        if (polInput && podInput && polInput.value && podInput.value) {
+            saveToRecentSearches(newPol, newPod, polInput.value, podInput.value);
+        }
+
         router.push(`/results?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`);
     };
 
@@ -809,7 +774,7 @@ function ResultsContent() {
     
         <div className="min-h-screen bg-gray-50">
             <Navbar />
-            <main className="container mx-auto px-4 py-8">
+            <main className="container mx-auto px-4 py-8 mt-16">
                 <SearchSection
                     newPol={newPol}
                     setNewPol={setNewPol}
@@ -817,12 +782,12 @@ function ResultsContent() {
                     setNewPod={setNewPod}
                     handleNewSearch={handleNewSearch}
                     searchError={searchError}
-                    pol={searchParams.get('pol')}
-                    pod={searchParams.get('pod')}
+                    pol={currentPol}
+                    pod={currentPod}
                 />
 
                 <div className="flex flex-col md:flex-row gap-6 mt-8">
-                    {/* Filters Section */}
+                    {/* Filters Section - Left Side */}
                     <div className="md:w-1/4">
                         {!loading && !error && results.length > 0 && (
                             <div className="sticky top-24">
@@ -831,32 +796,31 @@ function ResultsContent() {
                         )}
                     </div>
 
-                    {/* Results Section */}
+                    {/* Results Section - Right Side */}
                     <div className="md:w-3/4">
-                        {loading ? (
-                            <div className="flex justify-center items-center min-h-[400px]">
-                                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#C6082C]"></div>
-                            </div>
-                        ) : error ? (
+                        {!loading && !error && highlights && (
+                            <RateHighlights 
+                                highlights={highlights} 
+                                onHighlightClick={handleHighlightClick}
+                            />
+                        )}
+
+                        {error ? (
                             <div className="text-center text-red-600">{error}</div>
+                        ) : filteredResults.length === 0 ? (
+                            <div className="text-center text-gray-600">No results found</div>
                         ) : (
-                            <>
-                                {highlights && (
-                                    <RateHighlights 
-                                        highlights={highlights} 
-                                        onHighlightClick={handleHighlightClick}
-                                    />
-                                )}
-                                <div className="space-y-6 mt-6">
-                                    {filteredResults.map((rate) => (
-                                        <RateCard 
-                                            key={rate._id} 
-                                            rate={rate}
-                                            getContainerIcon={getContainerIcon}
-                                        />
-                                    ))}
-                                </div>
-                            </>
+                            <div className="space-y-6">
+                                {filteredResults.map((result, index) => (
+                                    <div 
+                                        key={index}
+                                        id={`rate-${index}`}
+                                        className="transition-all duration-300"
+                                    >
+                                        <RateCard rate={result} />
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>

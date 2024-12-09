@@ -67,22 +67,27 @@ export const deleteUser = async (userId) => {
     });
 };
 
-export const searchRates = async (polCode, podCode) => {
+export const searchRates = async (pol, pod) => {
     try {
         const response = await fetch(`${API_URL}api/rates/search`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                // Add Authorization header if needed
+                ...(session?.accessToken ? {
+                    'Authorization': `Bearer ${session.accessToken}`
+                } : {})
             },
-            body: JSON.stringify({
-                pol_code: polCode,
-                pod_code: podCode
-            })
+            body: JSON.stringify({ pol_code: pol, pod_code: pod }),
         });
-
+        
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
         return await response.json();
     } catch (error) {
-        console.error('Error fetching rates:', error);
+        console.error('Error searching rates:', error);
         throw error;
     }
 };
