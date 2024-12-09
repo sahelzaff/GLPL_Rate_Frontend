@@ -531,6 +531,29 @@ const saveToRecentSearches = (polCode, podCode, polName, podName) => {
   localStorage.setItem('recentSearches', JSON.stringify(searches));
 };
 
+const calculateHighlights = (rates) => {
+    if (!rates || rates.length === 0) return null;
+
+    let cheapest = rates[0];
+    let fastest = rates[0];
+    let recommended = rates[0];
+
+    rates.forEach(rate => {
+        // Compare total costs for 20ft container
+        const current20ft = rate.container_rates.find(cr => cr.type === '20')?.total || Infinity;
+        const cheapest20ft = cheapest.container_rates.find(cr => cr.type === '20')?.total || Infinity;
+        if (current20ft < cheapest20ft) {
+            cheapest = rate;
+        }
+    });
+
+    return {
+        cheapest,
+        fastest,
+        recommended
+    };
+};
+
 function ResultsContent() {
     const router = useRouter();
     const { data: session, status } = useSession();
@@ -573,22 +596,40 @@ function ResultsContent() {
             });
 
             const responseData = await response.json();
-            console.log('Search response:', responseData); // Debug log
+            console.log('Search response:', responseData);
             
             if (responseData.status === 'success' && responseData.data?.data) {
                 const ratesArray = responseData.data.data;
-                setResults(ratesArray);
-                setFilteredResults(ratesArray);
+                
+                // Process the rates to ensure all required fields are present
+                const processedRates = ratesArray.map(rate => ({
+                    ...rate,
+                    shipping_line: rate.shipping_line || 'Unknown',
+                    pol: rate.pol || 'Unknown',
+                    pod: rate.pod || 'Unknown',
+                    valid_from: rate.valid_from || '',
+                    valid_to: rate.valid_to || '',
+                    container_rates: rate.container_rates || []
+                }));
+
+                setResults(processedRates);
+                setFilteredResults(processedRates);
+
+                // Calculate highlights after setting results
+                const highlights = calculateHighlights(processedRates);
+                setHighlights(highlights);
             } else {
                 setError(responseData.data?.message || 'No rates found');
                 setResults([]);
                 setFilteredResults([]);
+                setHighlights(null);
             }
         } catch (err) {
             console.error('Error fetching results:', err);
             setError('Failed to fetch results. Please try again.');
             setResults([]);
             setFilteredResults([]);
+            setHighlights(null);
         } finally {
             setLoading(false);
         }
@@ -646,11 +687,14 @@ function ResultsContent() {
     };
 
     useEffect(() => {
+        if (results && results.length > 0) {
         // Debug shipping line logos
         results.forEach(result => {
-            const logo = getShippingLineLogo(result.shippingLine);
-            console.log(`Shipping Line: ${result.shippingLine}, Logo Path: ${logo}`);
+                const shippingLine = result.shipping_line || '';  // Use shipping_line instead of shippingLine
+                const logo = getShippingLineLogo(shippingLine);
+                console.log(`Shipping Line: ${shippingLine}, Logo Path: ${logo}`);
         });
+        }
     }, [results]);
 
     useEffect(() => {
