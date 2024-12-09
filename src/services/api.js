@@ -72,22 +72,36 @@ export const searchRates = async (pol, pod) => {
         const response = await fetch(`${API_URL}api/rates/search`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                // Add Authorization header if needed
-                ...(session?.accessToken ? {
-                    'Authorization': `Bearer ${session.accessToken}`
-                } : {})
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ pol_code: pol, pod_code: pod }),
+            body: JSON.stringify({
+                pol_code: pol.code,
+                pod_code: pod.code
+            })
         });
-        
+
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            throw new Error('Failed to fetch rates');
         }
+
+        const data = await response.json();
         
-        return await response.json();
+        // Ensure we always return an array in the expected format
+        if (data.status === 'success') {
+            return {
+                status: 'success',
+                data: Array.isArray(data.data.data) ? data.data.data : []
+            };
+        }
+
+        return {
+            status: 'error',
+            data: [],
+            message: data.data?.message || 'Failed to fetch rates'
+        };
+
     } catch (error) {
-        console.error('Error searching rates:', error);
+        console.error('Error fetching rates:', error);
         throw error;
     }
 };

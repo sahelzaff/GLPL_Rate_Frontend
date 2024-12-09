@@ -548,6 +548,9 @@ function ResultsContent() {
         cheapest: React.useRef(null),
         fastest: React.useRef(null)
     };
+    const [searchResults, setSearchResults] = useState([]);
+    const [pol, setPol] = useState(null);
+    const [pod, setPod] = useState(null);
 
     // Get current pol and pod from searchParams
     const currentPol = searchParams.get('pol');
@@ -758,6 +761,35 @@ function ResultsContent() {
             }
         }
     };
+
+    const fetchResults = async () => {
+        if (!pol || !pod) return;
+        
+        try {
+            setLoading(true);
+            const response = await searchRates(pol, pod);
+            
+            if (response.status === 'success') {
+                setSearchResults(response.data || []);
+            } else {
+                toast.error(response.message || 'Failed to fetch rates');
+                setSearchResults([]);
+            }
+            
+        } catch (error) {
+            console.error('Error fetching results:', error);
+            toast.error('Failed to fetch rates');
+            setSearchResults([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (pol && pod) {
+            fetchResults();
+        }
+    }, [pol, pod]);
 
     if (loading) {
         return (
