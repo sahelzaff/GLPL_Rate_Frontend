@@ -572,13 +572,15 @@ function ResultsContent() {
                 })
             });
 
-            const data = await response.json();
+            const responseData = await response.json();
+            console.log('Search response:', responseData); // Debug log
             
-            if (data.status === 'success') {
-                setResults(data.data || []);
-                setFilteredResults(data.data || []);
+            if (responseData.status === 'success' && responseData.data?.data) {
+                const ratesArray = responseData.data.data;
+                setResults(ratesArray);
+                setFilteredResults(ratesArray);
             } else {
-                setError(data.message || 'Failed to fetch rates');
+                setError(responseData.data?.message || 'No rates found');
                 setResults([]);
                 setFilteredResults([]);
             }
@@ -605,8 +607,8 @@ function ResultsContent() {
 
         if (polParam && podParam) {
             handleSearch(polParam, podParam);
-        setNewPol(polParam);
-        setNewPod(podParam);
+            setNewPol(polParam);
+            setNewPod(podParam);
         }
     }, [status, searchParams]);
 
@@ -788,14 +790,53 @@ function ResultsContent() {
                             <div className="text-center text-gray-600">No results found</div>
                         ) : (
                             <div className="space-y-6">
-                                {filteredResults.map((result, index) => (
-                                    <div 
-                                        key={index}
-                                        id={`rate-${index}`}
-                                        className="transition-all duration-300"
+                                {filteredResults.map((rate) => (
+                                    <motion.div
+                                        key={rate._id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="bg-white rounded-lg shadow-md p-6"
                                     >
-                                        <RateCard rate={result} />
-                                    </div>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900">
+                                                    {rate.shipping_line}
+                                                </h3>
+                                                <div className="mt-2 space-y-1">
+                                                    <p className="text-sm text-gray-600">
+                                                        <span className="font-medium">Route:</span>{' '}
+                                                        {rate.pol} → {rate.pod}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        <span className="font-medium">Valid:</span>{' '}
+                                                        {rate.valid_from} to {rate.valid_to}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4">
+                                            <h4 className="font-medium text-gray-900">Container Rates:</h4>
+                                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {rate.container_rates.map((containerRate, index) => (
+                                                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="font-medium">{containerRate.type}'</span>
+                                                            <span className="text-[#C6082C] font-semibold">
+                                                                USD {containerRate.total.toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2 text-sm text-gray-500">
+                                                            <div>Base Rate: USD {containerRate.base_rate.toLocaleString()}</div>
+                                                            <div>EWRS Laden: USD {containerRate.ewrs_laden}</div>
+                                                            <div>EWRS Empty: USD {containerRate.ewrs_empty}</div>
+                                                            <div>BAF: USD {containerRate.baf}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </motion.div>
                                 ))}
                             </div>
                         )}
