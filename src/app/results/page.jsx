@@ -23,6 +23,30 @@ import toast from 'react-hot-toast';
 import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
+const calculateHighlights = (rates) => {
+    if (!rates || rates.length === 0) return null;
+
+    let cheapest = rates[0];
+    let fastest = rates[0];
+    let recommended = rates[0];
+
+    rates.forEach(rate => {
+        // Compare total costs for 20ft container
+        const current20ft = rate.container_rates?.find(cr => cr.type === '20')?.total || Infinity;
+        const cheapest20ft = cheapest.container_rates?.find(cr => cr.type === '20')?.total || Infinity;
+        
+        if (current20ft < cheapest20ft) {
+            cheapest = rate;
+        }
+    });
+
+    return {
+        cheapest,
+        fastest,
+        recommended
+    };
+};
+
 const getRateHighlights = (results) => {
     // Ensure results is an array before processing
     if (!Array.isArray(results) || results.length === 0) {
@@ -531,29 +555,6 @@ const saveToRecentSearches = (polCode, podCode, polName, podName) => {
   localStorage.setItem('recentSearches', JSON.stringify(searches));
 };
 
-const calculateHighlights = (rates) => {
-    if (!rates || rates.length === 0) return null;
-
-    let cheapest = rates[0];
-    let fastest = rates[0];
-    let recommended = rates[0];
-
-    rates.forEach(rate => {
-        // Compare total costs for 20ft container
-        const current20ft = rate.container_rates.find(cr => cr.type === '20')?.total || Infinity;
-        const cheapest20ft = cheapest.container_rates.find(cr => cr.type === '20')?.total || Infinity;
-        if (current20ft < cheapest20ft) {
-            cheapest = rate;
-        }
-    });
-
-    return {
-        cheapest,
-        fastest,
-        recommended
-    };
-};
-
 function ResultsContent() {
     const router = useRouter();
     const { data: session, status } = useSession();
@@ -572,12 +573,17 @@ function ResultsContent() {
         fastest: React.useRef(null)
     };
 
+    // Get current pol and pod from searchParams
+    const currentPol = searchParams.get('pol');
+    const currentPod = searchParams.get('pod');
+
     const handleSearch = async (polCode, podCode) => {
         try {
             if (!polCode || !podCode) {
                 setError('Both origin and destination ports are required');
                 setResults([]);
                 setFilteredResults([]);
+                setHighlights(null);
                 return;
             }
 
@@ -609,7 +615,8 @@ function ResultsContent() {
                     pod: rate.pod || 'Unknown',
                     valid_from: rate.valid_from || '',
                     valid_to: rate.valid_to || '',
-                    container_rates: rate.container_rates || []
+                    container_rates: rate.container_rates || [],
+                    containerRates: rate.container_rates || [] // Add this for compatibility
                 }));
 
                 setResults(processedRates);
@@ -643,23 +650,41 @@ function ResultsContent() {
             return;
         }
 
-        const polParam = searchParams.get('pol');
-        const podParam = searchParams.get('pod');
+        const pol = searchParams.get('pol');
+        const pod = searchParams.get('pod');
 
-        if (polParam && podParam) {
-            handleSearch(polParam, podParam);
-            setNewPol(polParam);
-            setNewPod(podParam);
-        }
-    }, [status, searchParams]);
-
-    const handleNewSearch = () => {
-        if (!newPol || !newPod) {
-            setSearchError('Please select both origin and destination ports');
+        if (!pol || !pod) {
+            // Check for stored search params
+            const storedSearch = localStorage.getItem('searchParams');
+            if (storedSearch) {
+                const { pol: storedPol, pod: storedPod } = JSON.parse(storedSearch);
+                localStorage.removeItem('searchParams'); // Clean up
+                router.push(`/results?pol=${encodeURIComponent(storedPol)}&pod=${encodeURIComponent(storedPod)}`);
+            } else {
+                router.push('/');
+            }
             return;
         }
 
-        setSearchError('');
+        setNewPol(pol);
+        setNewPod(pod);
+        handleSearch(pol, pod);
+    }, [status, searchParams, router]);
+
+    const handleNewSearch = async () => {
+        if (!newPol || !newPod) {
+            setSearchError('Please enter both POL and POD');
+            return;
+        }
+
+        // Get the full port names from the input fields
+        const polInput = document.querySelector('input[placeholder="Enter POL"]');
+        const podInput = document.querySelector('input[placeholder="Enter POD"]');
+        
+        if (polInput && podInput && polInput.value && podInput.value) {
+            saveToRecentSearches(newPol, newPod, polInput.value, podInput.value);
+        }
+
         router.push(`/results?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`);
     };
 
@@ -687,14 +712,11 @@ function ResultsContent() {
     };
 
     useEffect(() => {
-        if (results && results.length > 0) {
         // Debug shipping line logos
         results.forEach(result => {
-                const shippingLine = result.shipping_line || '';  // Use shipping_line instead of shippingLine
-                const logo = getShippingLineLogo(shippingLine);
-                console.log(`Shipping Line: ${shippingLine}, Logo Path: ${logo}`);
+            const logo = getShippingLineLogo(result.shippingLine);
+            console.log(`Shipping Line: ${result.shippingLine}, Logo Path: ${logo}`);
         });
-        }
     }, [results]);
 
     useEffect(() => {
@@ -794,7 +816,19 @@ function ResultsContent() {
         }
     };
 
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-100">
+                <Navbar />
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#C6082C]"></div>
+                </div>
+            </div>
+        );
+    }
+
     return (
+    
         <div className="min-h-screen bg-gray-50">
             <Navbar />
             <main className="container mx-auto px-4 py-8">
@@ -810,7 +844,7 @@ function ResultsContent() {
                 />
 
                 <div className="flex flex-col md:flex-row gap-6 mt-8">
-                    {/* Filters Section - Left Side */}
+                    {/* Filters Section */}
                     <div className="md:w-1/4">
                         {!loading && !error && results.length > 0 && (
                             <div className="sticky top-24">
@@ -819,70 +853,32 @@ function ResultsContent() {
                         )}
                     </div>
 
-                    {/* Results Section - Right Side */}
+                    {/* Results Section */}
                     <div className="md:w-3/4">
-                        {!loading && !error && highlights && (
-                            <RateHighlights 
-                                highlights={highlights} 
-                                onHighlightClick={handleHighlightClick}
-                            />
-                        )}
-
-                        {error ? (
-                            <div className="text-center text-red-600">{error}</div>
-                        ) : filteredResults.length === 0 ? (
-                            <div className="text-center text-gray-600">No results found</div>
-                        ) : (
-                            <div className="space-y-6">
-                                {filteredResults.map((rate) => (
-                                    <motion.div
-                                        key={rate._id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="bg-white rounded-lg shadow-md p-6"
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h3 className="text-lg font-semibold text-gray-900">
-                                                    {rate.shipping_line}
-                                                </h3>
-                                                <div className="mt-2 space-y-1">
-                                                    <p className="text-sm text-gray-600">
-                                                        <span className="font-medium">Route:</span>{' '}
-                                                        {rate.pol} → {rate.pod}
-                                                    </p>
-                                                    <p className="text-sm text-gray-600">
-                                                        <span className="font-medium">Valid:</span>{' '}
-                                                        {rate.valid_from} to {rate.valid_to}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4">
-                                            <h4 className="font-medium text-gray-900">Container Rates:</h4>
-                                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {rate.container_rates.map((containerRate, index) => (
-                                                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="font-medium">{containerRate.type}'</span>
-                                                            <span className="text-[#C6082C] font-semibold">
-                                                                USD {containerRate.total.toLocaleString()}
-                                                            </span>
-                                                        </div>
-                                                        <div className="mt-2 text-sm text-gray-500">
-                                                            <div>Base Rate: USD {containerRate.base_rate.toLocaleString()}</div>
-                                                            <div>EWRS Laden: USD {containerRate.ewrs_laden}</div>
-                                                            <div>EWRS Empty: USD {containerRate.ewrs_empty}</div>
-                                                            <div>BAF: USD {containerRate.baf}</div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
+                        {loading ? (
+                            <div className="flex justify-center items-center min-h-[400px]">
+                                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#C6082C]"></div>
                             </div>
+                        ) : error ? (
+                            <div className="text-center text-red-600">{error}</div>
+                        ) : (
+                            <>
+                                {highlights && (
+                                    <RateHighlights 
+                                        highlights={highlights} 
+                                        onHighlightClick={handleHighlightClick}
+                                    />
+                                )}
+                                <div className="space-y-6 mt-6">
+                                    {filteredResults.map((rate) => (
+                                        <RateCard 
+                                            key={rate._id} 
+                                            rate={rate}
+                                            getContainerIcon={getContainerIcon}
+                                        />
+                                    ))}
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
