@@ -28,45 +28,31 @@ import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
 const getRateHighlights = (results) => {
-    if (!results.length) return null;
+    if (!results || results.length === 0) return null;
 
-    const getLowestRate = (containerRates) => {
-        return Math.min(...containerRates.map(r => {
-            if (r.total_cost !== undefined && r.total_cost !== null) return r.total_cost;
-            if (r.base_rate !== undefined && r.base_rate !== null) return r.base_rate;
-            if (r.rate !== undefined && r.rate !== null) return r.rate;
-            return Infinity;
-        }));
+    const getLowestRate = (container_rates) => {
+        return Math.min(...container_rates.map(r => r.total || Infinity));
     };
 
-    const highlights = {
-        recommended: null,
-        cheapest: null,
-        fastest: null
+    let cheapest = results[0];
+    let fastest = results[0];
+    let recommended = results[0];
+
+    results.forEach(rate => {
+        // Find cheapest rate
+        if (getLowestRate(rate.container_rates) < getLowestRate(cheapest.container_rates)) {
+            cheapest = rate;
+        }
+    });
+
+    // For now, set recommended same as cheapest since we don't have other metrics
+    recommended = cheapest;
+
+    return {
+        recommended,
+        cheapest,
+        fastest
     };
-
-    // Get the cheapest rate
-    highlights.cheapest = results.reduce((min, current) => {
-        const minRate = getLowestRate(min.containerRates);
-        const currentRate = getLowestRate(current.containerRates);
-        return currentRate < minRate ? current : min;
-    }, results[0]);
-
-    // Get the fastest based on transit time
-    highlights.fastest = results.reduce((fastest, current) => {
-        if (!current.transitTime) return fastest;
-        if (!fastest.transitTime) return current;
-        return current.transitTime < fastest.transitTime ? current : fastest;
-    }, results[0]);
-
-    // Get recommended based on a combination of factors
-    highlights.recommended = results.reduce((recommended, current) => {
-        const currentScore = calculateRecommendationScore(current);
-        const recommendedScore = calculateRecommendationScore(recommended);
-        return currentScore > recommendedScore ? current : recommended;
-    }, results[0]);
-
-    return highlights;
 };
 
 const calculateRecommendationScore = (rate) => {
@@ -558,7 +544,7 @@ function ResultsContent() {
             setLoading(true);
             setError(null);
 
-            const response = await fetch('http://localhost:5001/api/rates/search', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates/search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -569,17 +555,31 @@ function ResultsContent() {
                 })
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to fetch rates');
-            }
-
             const data = await response.json();
-            setResults(data);
+
+            if (data.status === 'success' && data.data?.data) {
+                setResults(data.data.data);
+                setFilteredResults(data.data.data);
+                
+                // Calculate highlights if we have results
+                if (data.data.data.length > 0) {
+                    const highlights = getRateHighlights(data.data.data);
+                    setHighlights(highlights);
+                } else {
+                    setHighlights(null);
+                }
+            } else {
+                setError(data.data?.message || 'No rates found');
+                setResults([]);
+                setFilteredResults([]);
+                setHighlights(null);
+            }
         } catch (err) {
             console.error('Error fetching results:', err);
-            setError(err.message || 'Failed to fetch results. Please try again.');
+            setError('Failed to fetch results. Please try again.');
             setResults([]);
+            setFilteredResults([]);
+            setHighlights(null);
         } finally {
             setLoading(false);
         }
