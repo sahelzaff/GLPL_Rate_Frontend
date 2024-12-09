@@ -1,21 +1,17 @@
 'use client';
-import React from 'react';
-import { useEffect, useState, useRef } from 'react';
+import React, { Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { 
     MagnifyingGlassIcon,
-    CalendarIcon,
-    TruckIcon,
-    GlobeAltIcon,
     ArrowLongRightIcon,
     DocumentTextIcon,
     CurrencyDollarIcon,
     BuildingOffice2Icon,
     ClockIcon,
     CheckBadgeIcon,
-    ExclamationCircleIcon,
     CheckIcon,
     XMarkIcon
 } from "@heroicons/react/24/outline";
@@ -28,45 +24,49 @@ import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
 const getRateHighlights = (results) => {
-    if (!results.length) return null;
+    // Ensure results is an array before processing
+    if (!Array.isArray(results) || results.length === 0) {
+        return {
+            lowestRate: null,
+            highestRate: null,
+            averageRate: null,
+            totalRates: 0,
+            shippingLines: []
+        };
+    }
 
-    const getLowestRate = (containerRates) => {
-        return Math.min(...containerRates.map(r => {
-            if (r.total_cost !== undefined && r.total_cost !== null) return r.total_cost;
-            if (r.base_rate !== undefined && r.base_rate !== null) return r.base_rate;
-            if (r.rate !== undefined && r.rate !== null) return r.rate;
-            return Infinity;
-        }));
+    let lowestRate = Infinity;
+    let highestRate = -Infinity;
+    let totalRate = 0;
+    let shippingLines = new Set();
+    let validRatesCount = 0;
+
+    results.forEach(rate => {
+        if (rate.container_rates && Array.isArray(rate.container_rates)) {
+            rate.container_rates.forEach(containerRate => {
+                if (containerRate.rate) {
+                    const rateValue = parseFloat(containerRate.rate);
+                    if (!isNaN(rateValue)) {
+                        lowestRate = Math.min(lowestRate, rateValue);
+                        highestRate = Math.max(highestRate, rateValue);
+                        totalRate += rateValue;
+                        validRatesCount++;
+                    }
+                }
+            });
+        }
+        if (rate.shipping_line) {
+            shippingLines.add(rate.shipping_line);
+        }
+    });
+
+    return {
+        lowestRate: lowestRate === Infinity ? null : lowestRate,
+        highestRate: highestRate === -Infinity ? null : highestRate,
+        averageRate: validRatesCount > 0 ? totalRate / validRatesCount : null,
+        totalRates: validRatesCount,
+        shippingLines: Array.from(shippingLines)
     };
-
-    const highlights = {
-        recommended: null,
-        cheapest: null,
-        fastest: null
-    };
-
-    // Get the cheapest rate
-    highlights.cheapest = results.reduce((min, current) => {
-        const minRate = getLowestRate(min.containerRates);
-        const currentRate = getLowestRate(current.containerRates);
-        return currentRate < minRate ? current : min;
-    }, results[0]);
-
-    // Get the fastest based on transit time
-    highlights.fastest = results.reduce((fastest, current) => {
-        if (!current.transitTime) return fastest;
-        if (!fastest.transitTime) return current;
-        return current.transitTime < fastest.transitTime ? current : fastest;
-    }, results[0]);
-
-    // Get recommended based on a combination of factors
-    highlights.recommended = results.reduce((recommended, current) => {
-        const currentScore = calculateRecommendationScore(current);
-        const recommendedScore = calculateRecommendationScore(recommended);
-        return currentScore > recommendedScore ? current : recommended;
-    }, results[0]);
-
-    return highlights;
 };
 
 const calculateRecommendationScore = (rate) => {
@@ -531,7 +531,7 @@ const saveToRecentSearches = (polCode, podCode, polName, podName) => {
   localStorage.setItem('recentSearches', JSON.stringify(searches));
 };
 
-export default function Results() {
+function ResultsContent() {
     const router = useRouter();
     const { data: session, status } = useSession();
     const searchParams = useSearchParams();
@@ -549,12 +549,15 @@ export default function Results() {
         fastest: React.useRef(null)
     };
 
-    // Get current pol and pod from searchParams
-    const currentPol = searchParams.get('pol');
-    const currentPod = searchParams.get('pod');
-
-    const handleSearch = async (pol, pod) => {
+    const handleSearch = async (polCode, podCode) => {
         try {
+            if (!polCode || !podCode) {
+                setError('Both origin and destination ports are required');
+                setResults([]);
+                setFilteredResults([]);
+                return;
+            }
+
             setLoading(true);
             setError(null);
 
@@ -564,27 +567,36 @@ export default function Results() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    pol_code: pol,
-                    pod_code: pod
+                    pol_code: polCode,
+                    pod_code: podCode
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to fetch rates');
+                throw new Error(errorData.message || 'Failed to fetch rates');
             }
 
             const data = await response.json();
-            setResults(data);
+            
+            if (data.status === 'success' && data.data && Array.isArray(data.data.data)) {
+                setResults(data.data.data);
+                setFilteredResults(data.data.data);
+            } else {
+                setResults([]);
+                setFilteredResults([]);
+            }
         } catch (err) {
             console.error('Error fetching results:', err);
             setError(err.message || 'Failed to fetch results. Please try again.');
             setResults([]);
+            setFilteredResults([]);
         } finally {
             setLoading(false);
         }
     };
 
+    // Initial load effect
     useEffect(() => {
         if (status === 'loading') return;
 
@@ -593,15 +605,14 @@ export default function Results() {
             return;
         }
 
-        const pol = searchParams.get('pol');
-        const pod = searchParams.get('pod');
+        const polParam = searchParams.get('pol');
+        const podParam = searchParams.get('pod');
 
-        if (!pol || !pod) {
-            // Check for stored search params
+        if (!polParam || !podParam) {
             const storedSearch = localStorage.getItem('searchParams');
             if (storedSearch) {
                 const { pol: storedPol, pod: storedPod } = JSON.parse(storedSearch);
-                localStorage.removeItem('searchParams'); // Clean up
+                localStorage.removeItem('searchParams');
                 router.push(`/results?pol=${encodeURIComponent(storedPol)}&pod=${encodeURIComponent(storedPod)}`);
             } else {
                 router.push('/');
@@ -609,26 +620,23 @@ export default function Results() {
             return;
         }
 
-        setNewPol(pol);
-        setNewPod(pod);
-        handleSearch(pol, pod);
+        // Set the new POL/POD values
+        setNewPol(polParam);
+        setNewPod(podParam);
+
+        // Directly use the codes from URL params
+        handleSearch(polParam, podParam);
     }, [status, searchParams, router]);
 
-    const handleNewSearch = async () => {
+    const handleNewSearch = () => {
         if (!newPol || !newPod) {
-            setSearchError('Please enter both POL and POD');
+            setSearchError('Please select both origin and destination ports');
             return;
         }
 
-        // Get the full port names from the input fields
-        const polInput = document.querySelector('input[placeholder="Enter POL"]');
-        const podInput = document.querySelector('input[placeholder="Enter POD"]');
-        
-        if (polInput && podInput && polInput.value && podInput.value) {
-            saveToRecentSearches(newPol, newPod, polInput.value, podInput.value);
-        }
-
-        router.push(`/results?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`);
+        setSearchError('');
+        const searchQuery = `?pol=${encodeURIComponent(newPol)}&pod=${encodeURIComponent(newPod)}`;
+        router.push(`/results${searchQuery}`);
     };
 
     const getContainerIcon = (type) => {
@@ -771,6 +779,7 @@ export default function Results() {
     }
 
     return (
+    
         <div className="min-h-screen bg-gray-50">
             <Navbar />
             <main className="container mx-auto px-4 py-8 mt-16">
@@ -825,5 +834,17 @@ export default function Results() {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function Results() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#C6082C]"></div>
+            </div>
+        }>
+            <ResultsContent />
+        </Suspense>
     );
 } 
