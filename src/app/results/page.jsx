@@ -1,6 +1,11 @@
 'use client';
-import React, { Suspense } from 'react';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React, { 
+    Suspense, 
+    useState, 
+    useEffect, 
+    useRef, 
+    useCallback 
+} from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
@@ -17,8 +22,12 @@ import {
     CheckBadgeIcon,
     ExclamationCircleIcon,
     CheckIcon,
-    XMarkIcon
+    XMarkIcon,
+    CubeIcon,
+    BeakerIcon,
+    Square3Stack3DIcon
 } from "@heroicons/react/24/outline";
+import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import Autocomplete from '../components/Autocomplete';
 import { searchRates } from '@/services/api';
@@ -28,29 +37,35 @@ import RateFilters from '../components/RateFilters';
 import { LuShip } from "react-icons/lu";
 
 const getRateHighlights = (rates) => {
-    if (!Array.isArray(rates) || rates.length === 0) return null;
+    if (!rates?.data?.data || !Array.isArray(rates.data.data) || rates.data.data.length === 0) return null;
 
     const getLowestRate = (container_rates) => {
         if (!Array.isArray(container_rates)) return Infinity;
-        return Math.min(...container_rates.map(r => r?.total || Infinity));
+        return Math.min(...container_rates.map(r => {
+            // Handle both rate structures
+            if (r.total) return r.total;
+            if (r.rate) return r.rate;
+            return Infinity;
+        }));
     };
 
-    let cheapest = rates[0];
-    let fastest = rates[0];
-    let recommended = rates[0];
+    let cheapest = rates.data.data[0];
+    let fastest = rates.data.data[0];
+    let recommended = rates.data.data[0];
 
-    rates.forEach(rate => {
+    rates.data.data.forEach(rate => {
         if (rate && Array.isArray(rate.container_rates)) {
             const currentRate = getLowestRate(rate.container_rates);
             const cheapestRate = getLowestRate(cheapest.container_rates);
             
             if (currentRate < cheapestRate) {
-            cheapest = rate;
+                cheapest = rate;
             }
         }
     });
 
     recommended = cheapest;
+    fastest = cheapest;
 
     return {
         recommended,
@@ -70,14 +85,11 @@ const calculateRecommendationScore = (rate) => {
 };
 
 const RateHighlights = ({ highlights, onHighlightClick }) => {
+    if (!highlights) return null;
+
     const getDisplayRate = (rate) => {
-        const containerRates = rate.containerRates || [];
-        const lowestRate = Math.min(...containerRates.map(r => {
-            if (r.total_cost !== undefined && r.total_cost !== null) return r.total_cost;
-            if (r.base_rate !== undefined && r.base_rate !== null) return r.base_rate;
-            if (r.rate !== undefined && r.rate !== null) return r.rate;
-            return Infinity;
-        }));
+        if (!rate?.container_rates) return 0;
+        const lowestRate = Math.min(...rate.container_rates.map(r => r.total || Infinity));
         return lowestRate === Infinity ? 0 : lowestRate;
     };
 
@@ -96,10 +108,7 @@ const RateHighlights = ({ highlights, onHighlightClick }) => {
                 <p className="text-2xl font-bold text-gray-900">
                     ${getDisplayRate(highlights.recommended).toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600">{highlights.recommended.shippingLine}</p>
-                <p className="text-sm text-gray-500">
-                    {highlights.recommended.transitTime || 'N/A'} days transit time
-                </p>
+                <p className="text-sm text-gray-600">{highlights.recommended.shipping_line}</p>
             </motion.div>
 
             {/* Cheapest */}
@@ -115,10 +124,7 @@ const RateHighlights = ({ highlights, onHighlightClick }) => {
                 <p className="text-2xl font-bold text-gray-900">
                     ${getDisplayRate(highlights.cheapest).toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600">{highlights.cheapest.shippingLine}</p>
-                <p className="text-sm text-gray-500">
-                    {highlights.cheapest.transitTime || 'N/A'} days transit time
-                </p>
+                <p className="text-sm text-gray-600">{highlights.cheapest.shipping_line}</p>
             </motion.div>
 
             {/* Fastest */}
@@ -134,10 +140,7 @@ const RateHighlights = ({ highlights, onHighlightClick }) => {
                 <p className="text-2xl font-bold text-gray-900">
                     ${getDisplayRate(highlights.fastest).toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600">{highlights.fastest.shippingLine}</p>
-                <p className="text-sm text-gray-500">
-                    {highlights.fastest.transitTime || 'N/A'} days transit time
-                </p>
+                <p className="text-sm text-gray-600">{highlights.fastest.shipping_line}</p>
             </motion.div>
         </div>
     );
@@ -338,10 +341,13 @@ const NotesModal = ({ isOpen, onClose, notes }) => {
                         <div className="space-y-4">
                             {notes.map((note, index) => (
                                 <div 
-                                    key={note.id || index} 
-                                    className="p-4 bg-gray-50 rounded-lg"
+                                    key={note._id || index} 
+                                    className="p-4 bg-gray-50 rounded-lg whitespace-pre-line"
                                 >
                                     <p className="text-gray-700">{note.description}</p>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Added: {new Date(note.created_at).toLocaleString()}
+                                    </p>
                                 </div>
                             ))}
                         </div>
@@ -356,6 +362,69 @@ const NotesModal = ({ isOpen, onClose, notes }) => {
 
 const RateCard = ({ rate }) => {
     const [showNotes, setShowNotes] = useState(false);
+    const [notes, setNotes] = useState([]);
+    const [logoError, setLogoError] = useState(false);
+    
+    useEffect(() => {
+        const fetchNotes = async () => {
+            try {
+                const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rate._id}/notes`);
+                const data = await response.json();
+                if (data.status === 'success') {
+                    setNotes(data.data);
+                }
+            } catch (error) {
+                console.error('Error fetching notes:', error);
+            }
+        };
+
+        if (rate._id) {
+            fetchNotes();
+        }
+    }, [rate._id]);
+    
+    if (!rate) return null;
+
+    // Ensure container_rates is mapped to handle both structures
+    const containerRates = rate.container_rates?.map(cr => ({
+        type: cr.type,
+        total_cost: cr.total || cr.rate, // Handle both structures
+        base_rate: cr.base_rate || cr.rate, // If no base_rate, use rate
+        ewrs_laden: cr.ewrs_laden || 0,
+        ewrs_empty: cr.ewrs_empty || 0,
+        baf: cr.baf || 0,
+        reefer_surcharge: cr.reefer_surcharge || 0
+    })) || [];
+
+    // Function to get shipping line logo
+    const getShippingLineLogo = useCallback((shippingLine) => {
+        try {
+        const logos = {
+            'Unifeeder': assets.unifeeder,
+            'Evergreen': assets.evergreen,
+            'COSCO': assets.cosco,
+            'Hapag Lloyd': assets.hapag_lloyd,
+            // Add more shipping lines as needed
+        };
+            return logos[shippingLine] || null;
+        } catch (error) {
+            console.error('Error getting shipping line logo:', error);
+            return null;
+        }
+    }, []);
+
+    const getContainerTypeIcon = (type) => {
+        const cleanType = type.toString().toLowerCase();
+        
+        // Return appropriate icon based on container type
+        if (cleanType.includes('rf') || cleanType.includes('reefer')) {
+            return <BeakerIcon className="w-6 h-6 text-blue-500" />;
+        }
+        if (cleanType.includes('ot') || cleanType.includes('open') || cleanType.includes('hc')) {
+            return <Square3Stack3DIcon className="w-6 h-6 text-orange-500" />;
+        }
+        return <CubeIcon className="w-6 h-6 text-gray-500" />;
+    };
 
     return (
         <motion.div
@@ -367,110 +436,118 @@ const RateCard = ({ rate }) => {
             <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        {getShippingLineLogo(rate.shippingLine) ? (
+                        {!logoError && getShippingLineLogo(rate.shipping_line) ? (
                             <div className="h-10 w-24 relative">
-                                <img 
-                                    src={getShippingLineLogo(rate.shippingLine)} 
-                                    alt={rate.shippingLine}
+                                <Image 
+                                    src={getShippingLineLogo(rate.shipping_line)} 
+                                    alt={rate.shipping_line}
+                                    width={96}
+                                    height={40}
                                     className="h-full w-full object-contain"
-                                    onError={(e) => {
-                                        // console.error('Image load error for:', rate.shippingLine);
-                                        e.target.onerror = null; // Prevent infinite loop
-                                        e.target.src = ''; // Clear the source
-                                        e.target.style.display = 'none';
-                                        e.target.parentElement.innerHTML = `<div class="h-8 w-8 text-gray-400"><BuildingOffice2Icon /></div>`;
-                                    }}
+                                    onError={() => setLogoError(true)}
+                                    priority
+                                    loading="eager"
                                 />
                             </div>
                         ) : (
                             <BuildingOffice2Icon className="h-8 w-8 text-gray-400" />
                         )}
-                        <div>
+                <div>
                             <h3 className="text-lg font-semibold text-gray-900">
-                                {rate.shippingLine}
+                                {rate.shipping_line}
                             </h3>
                             <p className="text-sm text-gray-500">
-                                Valid until {new Date(rate.validTo).toLocaleDateString()}
-                            </p>
-                        </div>
+                                Valid until {new Date(rate.valid_to).toLocaleDateString()}
+                        </p>
                     </div>
-                    <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        className="px-4 py-2 bg-[#C6082C]/10 text-[#C6082C] rounded-lg font-medium text-sm"
-                    >
-                        {rate.transitTime ? `${rate.transitTime} days` : 'Transit time N/A'}
-                    </motion.div>
                 </div>
+            </div>
             </div>
 
             {/* Route Information */}
             <div className="p-6">
-                <div className="flex items-center justify-start space-x-4 mb-6">
-                    <div className="text-right">
-                        <p className="font-medium text-gray-900">{rate.pol}</p>
-                        <p className="text-sm text-gray-500">Port of Loading</p>
-                    </div>
-                    <div className="flex items-center space-x-2 text-gray-400">
-                        <div className="w-3 h-3 rounded-full bg-[#C6082C]" />
-                        <ArrowLongRightIcon className="w-10 h-6 text-[#C6082C]" />
-                        <div className="w-3 h-3 rounded-full bg-[#C6082C]" />
-                    </div>
-                    <div className="text-left">
-                        <p className="font-medium text-gray-900">{rate.pod}</p>
-                        <p className="text-sm text-gray-500">Port of Discharge</p>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-4">
+                        <div>
+                            <p className="font-medium text-gray-900">{rate.pol}</p>
+                            <p className="text-sm text-gray-500">Port of Loading</p>
+                        </div>
+                        <div className="flex items-center space-x-2 text-[#C6082C]">
+                            <div className="w-2 h-2 rounded-full bg-current" />
+                            <ArrowLongRightIcon className="w-8 h-5" />
+                            <div className="w-2 h-2 rounded-full bg-current" />
+                        </div>
+                        <div>
+                            <p className="font-medium text-gray-900">{rate.pod}</p>
+                            <p className="text-sm text-gray-500">Port of Discharge</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Container Rates */}
                 <div className="mt-6">
                     <h3 className="text-lg font-semibold mb-4">Container Rates</h3>
-                    <div className="grid grid-cols-1 gap-4">
-                        {rate.containerRates.map((containerRate, index) => (
-                            <ContainerRateDisplay 
-                                key={index} 
-                                containerRate={containerRate} 
-                            />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {containerRates.map((containerRate, index) => (
+                            <div key={index} className="bg-gray-50 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center space-x-2">
+                                        {getContainerTypeIcon(containerRate.type)}
+                                        <span className="font-medium">{containerRate.type}</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-[#C6082C]">
+                                        ${(containerRate.total_cost || containerRate.base_rate).toLocaleString()}
+                                    </span>
+                                </div>
+                                
+                                {/* Only show breakdown if additional charges exist */}
+                                {(containerRate.ewrs_laden || 
+                                  containerRate.ewrs_empty || 
+                                  containerRate.baf || 
+                                  containerRate.reefer_surcharge) && (
+                                    <div className="text-sm space-y-1 mt-2 pt-2 border-t">
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Base Rate:</span>
+                                            <span>${containerRate.base_rate.toLocaleString()}</span>
+                                        </div>
+                                        {containerRate.ewrs_laden > 0 && (
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">EWRS Laden:</span>
+                                                <span>${containerRate.ewrs_laden.toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {/* ... other charges ... */}
+                                    </div>
+                                )}
+                            </div>
                         ))}
                     </div>
                 </div>
-
-                {/* Add Notes Button */}
-                {rate.notes && rate.notes.length > 0 && (
-                    <div className="mt-4 pt-4 border-t">
-                        <button
-                            onClick={() => setShowNotes(true)}
-                            className="flex items-center space-x-2 text-[#C6082C] hover:text-[#a00624] transition-colors"
-                        >
-                            <DocumentTextIcon className="w-5 h-5" />
-                            <span className="font-medium">
-                                View Additional Notes ({rate.notes.length})
-                            </span>
-                        </button>
-                    </div>
-                )}
             </div>
 
             {/* Service Information */}
-            <div className="flex items-center space-x-2 p-4 bg-gray-50">
+            <div className="flex items-center justify-between p-4 bg-gray-50">
+                <div className="flex items-center space-x-4">
                 <div className="flex items-center">
-                    <LuShip  className="w-4 h-4 text-gray-400" />
+                    <LuShip className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-500 ml-2">Direct Service</span>
                 </div>
+                <div className="flex items-center">
+                    <CalendarIcon className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-500 ml-2">
+                        {new Date(rate.valid_from).toLocaleDateString()} - {new Date(rate.valid_to).toLocaleDateString()}
+                    </span>
+                </div>
+            </div>
                 
-                {rate.transitTime && (
-                    <div className="flex items-center ml-4">
-                        <ClockIcon className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-500 ml-2">
-                            {rate.transitTime} days
-                        </span>
-                    </div>
-                )}
-                
-                {rate.verified && (
-                    <div className="flex items-center ml-4">
-                        <CheckBadgeIcon className="w-5 h-5 text-green-500" />
-                        <span className="text-sm text-gray-500 ml-2">Verified Rate</span>
-                    </div>
+                {notes.length > 0 && (
+                    <button
+                        onClick={() => setShowNotes(true)}
+                        className="flex items-center space-x-1 text-[#C6082C] hover:text-[#a00624] text-sm"
+                    >
+                        <DocumentTextIcon className="w-4 h-4" />
+                        <span>View Notes</span>
+                    </button>
                 )}
             </div>
 
@@ -478,7 +555,7 @@ const RateCard = ({ rate }) => {
             <NotesModal
                 isOpen={showNotes}
                 onClose={() => setShowNotes(false)}
-                notes={rate.notes}
+                notes={notes}
             />
         </motion.div>
     );
@@ -559,7 +636,7 @@ function ResultsContent() {
             const response = await fetch('https://glplratebackend-production.up.railway.app/api/rates/search', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     pol_code: pol,
@@ -569,19 +646,12 @@ function ResultsContent() {
 
             const data = await response.json();
 
-            if (data.status === 'success' && data.data?.data) {
-                const ratesData = Array.isArray(data.data.data) ? data.data.data : [];
-                setResults(ratesData);
-                setFilteredResults(ratesData);
-                
-                if (ratesData.length > 0) {
-                    const highlights = getRateHighlights(ratesData);
-                    setHighlights(highlights);
+            if (data.status === 'success') {
+                setResults(data);
+                setFilteredResults(data.data.data);
+                setHighlights(getRateHighlights(data));
                 } else {
-                    setHighlights(null);
-                }
-            } else {
-                setError(data.data?.message || 'No rates found');
+                setError(data.message || 'No rates found');
                 setResults([]);
                 setFilteredResults([]);
                 setHighlights(null);
@@ -644,62 +714,92 @@ function ResultsContent() {
     };
 
     const getContainerIcon = (type) => {
-        const size = type.split("'")[0]; // Gets "20", "40", "45" etc.
-        const description = type.split("'")[1]?.toLowerCase() || ''; // Gets the description in lowercase
+        // Remove any quotes and convert to lowercase for consistent comparison
+        const cleanType = type.toString().replace(/['"]/g, '').toLowerCase();
 
-        if (description.includes('standard')) {
-            return size === '20' ? assets.standard_20 
-                 : size === '40' ? assets.standard_40 
-                 : assets.standard_45;
+        // Check for container size and type
+        if (cleanType.includes('20')) {
+            if (cleanType.includes('rf') || cleanType.includes('reefer')) {
+                return assets.reefer_20;
+            }
+            if (cleanType.includes('ot') || cleanType.includes('open top')) {
+                return assets.ot_20;
+            }
+            return assets.standard_20;
         }
-        if (description.includes('reefer')) {
-            return size === '20' ? assets.reefer_20 
-                 : size === '40' ? assets.reefer_40 
-                 : assets.reefer_45;
+
+        if (cleanType.includes('40')) {
+            if (cleanType.includes('rf') || cleanType.includes('reefer')) {
+                return assets.reefer_40;
+            }
+            if (cleanType.includes('ot') || cleanType.includes('open top')) {
+                if (cleanType.includes('hc') || cleanType.includes('high cube')) {
+                    return assets.ot_40hc;
+                }
+                return assets.ot_40;
+            }
+            return assets.standard_40;
         }
-        if (description.includes('open top')) {
-            return size === '20' ? assets.ot_20 
-                 : size === '40' ? assets.ot_40 
-                 : assets.ot_40hc;
+
+        if (cleanType.includes('45')) {
+            if (cleanType.includes('rf') || cleanType.includes('reefer')) {
+                return assets.reefer_45;
+            }
+            return assets.standard_45;
         }
-        // Default to standard container if no match
+
+        // Default to standard 20ft container if no match
         return assets.standard_20;
     };
 
     useEffect(() => {
         // Debug shipping line logos
+        if (Array.isArray(results)) {
         results.forEach(result => {
             const logo = getShippingLineLogo(result.shippingLine);
             // console.log(`Shipping Line: ${result.shippingLine}, Logo Path: ${logo}`);
         });
+        }
     }, [results]);
 
+    // Add this function instead if you need to check image availability
+    const validateImageUrl = async (url) => {
+        try {
+            const res = await fetch(url, { method: 'HEAD' });
+            return res.ok;
+        } catch (error) {
+            console.error(`Failed to validate image URL: ${url}`, error);
+            return false;
+        }
+    };
+
+    // If you need to check logos, use this approach
     useEffect(() => {
-        // Debug image paths
+        const checkLogos = async () => {
         const logos = {
-            maersk: assets.maersk,
-            hapag_lloyd: assets.hapag_lloyd,
-            cosco: assets.cosco,
-            msc: assets.msc,
-            one: assets.one,
+                unifeeder: assets.unifeeder,
             evergreen: assets.evergreen,
-            cma_cgm: assets.cma_cgm
+                cosco: assets.cosco,
+                hapag_lloyd: assets.hapag_lloyd,
+                // Add other logos as needed
+            };
+
+            for (const [name, path] of Object.entries(logos)) {
+                const isValid = await validateImageUrl(path);
+                if (!isValid) {
+                    console.warn(`⚠️ Logo not found: ${name} (${path})`);
+                } else {
+                    console.log(`✅ Logo verified: ${name}`);
+                }
+            }
         };
-        
-        // console.log('Available logo paths:', logos);
-        
-        // Test image loading
-        Object.entries(logos).forEach(([name, path]) => {
-            const img = new Image();
-            // img.onload = () => console.log(`✅ ${name} logo loaded successfully`);
-            // img.onerror = () => console.error(`❌ Failed to load ${name} logo from: ${path}`);
-            img.src = path;
-        });
+
+        checkLogos();
     }, []);
 
     useEffect(() => {
-        if (Array.isArray(results) && results.length > 0) {
-            setFilteredResults(results);
+        if (Array.isArray(results?.data?.data) && results.data.data.length > 0) {
+            setFilteredResults(results.data.data);
             const newHighlights = getRateHighlights(results);
             setHighlights(newHighlights);
         } else {
@@ -709,39 +809,22 @@ function ResultsContent() {
     }, [results]);
 
     const handleFilterChange = (filters) => {
-        let filtered = [...results];
+        if (!results?.data?.data) return;
+
+        let filtered = [...results.data.data];
 
         // Filter by price range
         if (filters.priceRange.min) {
             filtered = filtered.filter(result => 
-                result.containerRates.some(rate => rate.rate >= Number(filters.priceRange.min))
+                result.container_rates.some(rate => 
+                    (rate.total || rate.rate) >= Number(filters.priceRange.min)
+                )
             );
         }
         if (filters.priceRange.max) {
             filtered = filtered.filter(result => 
-                result.containerRates.some(rate => rate.rate <= Number(filters.priceRange.max))
-            );
-        }
-
-        // Filter by transit time
-        if (filters.transitTime.min) {
-            filtered = filtered.filter(result => 
-                result.transitTime >= Number(filters.transitTime.min)
-            );
-        }
-        if (filters.transitTime.max) {
-            filtered = filtered.filter(result => 
-                result.transitTime <= Number(filters.transitTime.max)
-            );
-        }
-
-        // Filter by container types
-        if (filters.containerTypes.length > 0) {
-            filtered = filtered.filter(result =>
-                result.containerRates.some(rate =>
-                    filters.containerTypes.some(type =>
-                        rate.type.toLowerCase().includes(type.toLowerCase())
-                    )
+                result.container_rates.some(rate => 
+                    (rate.total || rate.rate) <= Number(filters.priceRange.max)
                 )
             );
         }
@@ -749,13 +832,18 @@ function ResultsContent() {
         // Sort results
         switch (filters.sortBy) {
             case 'price_asc':
-                filtered.sort((a, b) => Math.min(...a.containerRates.map(r => r.rate)) - Math.min(...b.containerRates.map(r => r.rate)));
+                filtered.sort((a, b) => {
+                    const aMin = Math.min(...a.container_rates.map(r => r.total || r.rate || Infinity));
+                    const bMin = Math.min(...b.container_rates.map(r => r.total || r.rate || Infinity));
+                    return aMin - bMin;
+                });
                 break;
             case 'price_desc':
-                filtered.sort((a, b) => Math.max(...b.containerRates.map(r => r.rate)) - Math.max(...a.containerRates.map(r => r.rate)));
-                break;
-            case 'transit_time':
-                filtered.sort((a, b) => (a.transitTime || 0) - (b.transitTime || 0));
+                filtered.sort((a, b) => {
+                    const aMax = Math.max(...a.container_rates.map(r => r.total || r.rate || -Infinity));
+                    const bMax = Math.max(...b.container_rates.map(r => r.total || r.rate || -Infinity));
+                    return bMax - aMax;
+                });
                 break;
         }
 
@@ -763,15 +851,20 @@ function ResultsContent() {
     };
 
     const handleHighlightClick = (type) => {
-        const index = filteredResults.findIndex(rate => rate === highlights[type]);
-        if (index !== -1) {
-            const element = document.getElementById(`rate-${index}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Add highlight animation
-                element.classList.add('highlight-pulse');
-                setTimeout(() => element.classList.remove('highlight-pulse'), 2000);
-            }
+        if (!highlights) return;
+        
+        const rate = highlights[type];
+        if (!rate) return;
+
+        // Scroll to the rate card
+        const rateElement = document.getElementById(`rate-${rate._id}`);
+        if (rateElement) {
+            rateElement.scrollIntoView({ behavior: 'smooth' });
+            // Add a highlight effect
+            rateElement.classList.add('highlight-pulse');
+            setTimeout(() => {
+                rateElement.classList.remove('highlight-pulse');
+            }, 2000);
         }
     };
 
@@ -787,7 +880,6 @@ function ResultsContent() {
     }
 
     return (
-    
         <div className="min-h-screen bg-gray-50">
             <Navbar />
             <main className="container mx-auto px-4 py-8 mt-16">
@@ -805,7 +897,7 @@ function ResultsContent() {
                 <div className="flex flex-col md:flex-row gap-6 mt-8">
                     {/* Filters Section - Left Side */}
                     <div className="md:w-1/4">
-                        {!loading && !error && results.length > 0 && (
+                        {!loading && !error && filteredResults.length > 0 && (
                             <div className="sticky top-24">
                                 <RateFilters onFilterChange={handleFilterChange} />
                             </div>
@@ -829,8 +921,8 @@ function ResultsContent() {
                             <div className="space-y-6">
                                 {filteredResults.map((result, index) => (
                                     <div 
-                                        key={index}
-                                        id={`rate-${index}`}
+                                        key={result._id}
+                                        id={`rate-${result._id}`}
                                         className="transition-all duration-300"
                                     >
                                         <RateCard rate={result} />

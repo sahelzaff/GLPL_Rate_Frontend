@@ -247,7 +247,7 @@ export default function AdminPage() {
             </div>
 
             {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <ChartCard title="Rate Trends">
                     <div className="h-64 flex items-center justify-center text-gray-500">
                         <ChartBarIcon className="w-12 h-12" />
@@ -260,7 +260,7 @@ export default function AdminPage() {
                         <span className="ml-2">Chart will be implemented here</span>
                     </div>
                 </ChartCard>
-            </div>
+            </div> */}
 
             {/* Recent Activity */}
             <ChartCard title={

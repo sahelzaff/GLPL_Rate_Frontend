@@ -19,7 +19,7 @@ export default function ActivityLogPage() {
         if (!session?.accessToken) return;
         
         try {
-            const response = await fetch('https://glplratebackend-production.up.railway.app//api/dashboard/historical-activity?limit=100', {
+            const response = await fetch('https://glplratebackend-production.up.railway.app/api/dashboard/historical-activity?limit=100', {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`
                 }
