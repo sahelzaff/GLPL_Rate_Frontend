@@ -365,47 +365,16 @@ const RateCard = ({ rate }) => {
     const [notes, setNotes] = useState([]);
     const [logoError, setLogoError] = useState(false);
     
-    useEffect(() => {
-        const fetchNotes = async () => {
-            try {
-                const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rate._id}/notes`);
-                const data = await response.json();
-                if (data.status === 'success') {
-                    setNotes(data.data);
-                }
-            } catch (error) {
-                console.error('Error fetching notes:', error);
-            }
-        };
-
-        if (rate._id) {
-            fetchNotes();
-        }
-    }, [rate._id]);
-    
-    if (!rate) return null;
-
-    // Ensure container_rates is mapped to handle both structures
-    const containerRates = rate.container_rates?.map(cr => ({
-        type: cr.type,
-        total_cost: cr.total || cr.rate, // Handle both structures
-        base_rate: cr.base_rate || cr.rate, // If no base_rate, use rate
-        ewrs_laden: cr.ewrs_laden || 0,
-        ewrs_empty: cr.ewrs_empty || 0,
-        baf: cr.baf || 0,
-        reefer_surcharge: cr.reefer_surcharge || 0
-    })) || [];
-
-    // Function to get shipping line logo
+    // Move useCallback to the top, before any conditional returns
     const getShippingLineLogo = useCallback((shippingLine) => {
         try {
-        const logos = {
-            'Unifeeder': assets.unifeeder,
-            'Evergreen': assets.evergreen,
-            'COSCO': assets.cosco,
-            'Hapag Lloyd': assets.hapag_lloyd,
-            // Add more shipping lines as needed
-        };
+            const logos = {
+                'Unifeeder': assets.unifeeder,
+                'Evergreen': assets.evergreen,
+                'COSCO': assets.cosco,
+                'Hapag Lloyd': assets.hapag_lloyd,
+                // Add more shipping lines as needed
+            };
             return logos[shippingLine] || null;
         } catch (error) {
             console.error('Error getting shipping line logo:', error);
@@ -425,6 +394,38 @@ const RateCard = ({ rate }) => {
         }
         return <CubeIcon className="w-6 h-6 text-gray-500" />;
     };
+
+    useEffect(() => {
+        const fetchNotes = async () => {
+            try {
+                const response = await fetch(`https://glplratebackend-production.up.railway.app/api/rates/${rate._id}/notes`);
+                const data = await response.json();
+                if (data.status === 'success') {
+                    setNotes(data.data);
+                }
+            } catch (error) {
+                console.error('Error fetching notes:', error);
+            }
+        };
+
+        if (rate._id) {
+            fetchNotes();
+        }
+    }, [rate._id]);
+    
+    // Move this check after all hooks are defined
+    if (!rate) return null;
+
+    // Ensure container_rates is mapped to handle both structures
+    const containerRates = rate.container_rates?.map(cr => ({
+        type: cr.type,
+        total_cost: cr.total || cr.rate, // Handle both structures
+        base_rate: cr.base_rate || cr.rate, // If no base_rate, use rate
+        ewrs_laden: cr.ewrs_laden || 0,
+        ewrs_empty: cr.ewrs_empty || 0,
+        baf: cr.baf || 0,
+        reefer_surcharge: cr.reefer_surcharge || 0
+    })) || [];
 
     return (
         <motion.div
